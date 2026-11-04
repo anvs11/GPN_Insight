@@ -1,0 +1,106 @@
+# GPN Insight
+
+Внутренний пилот анализа продуктовой обратной связи. Сейчас реализован **этап 1 участника 3**: каркас FastAPI, контракты, конфигурация, SQLite и подготовленная синтетическая карточка с сохранением решения «Исследуется». Это ещё не сквозной анализ обращений.
+
+Проверено на Windows, **Python 3.13.0**. Node.js/npm для backend не нужны. Прямые зависимости указаны в `backend/requirements.in`, все фактически установленные версии зафиксированы в `backend/requirements.txt`. Python 3.12 на этой машине не проверялся. `tzdata` нужна для `Europe/Moscow` на Windows.
+
+## Запуск из PowerShell
+
+Из корня репозитория:
+
+```powershell
+python --version
+if (-not (Test-Path -LiteralPath .venv/Scripts/python.exe)) {
+    python -m venv .venv
+}
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+.\.venv\Scripts\python.exe -m pip check
+if (-not (Test-Path -LiteralPath .env)) {
+    Copy-Item -LiteralPath .env.example -Destination .env
+}
+Set-Location backend
+..\.venv\Scripts\python.exe -m pytest -q
+..\.venv\Scripts\python.exe -X utf8 -m app.cli validate-examples
+..\.venv\Scripts\python.exe -X utf8 -m app.cli init-db
+..\.venv\Scripts\python.exe -X utf8 -m app.cli seed-demo
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+```
+
+Если `.venv` уже создана для этого проекта, повторять `venv` не требуется. Активация окружения и изменение политики PowerShell не нужны. `-X utf8` обеспечивает читаемый русский вывод CLI. Остановка сервера — `Ctrl+C`.
+
+Все пути из `.env` считаются от корня репозитория независимо от рабочей папки. База по умолчанию — `var/insight.db`. `.env`, `var/`, базы и окружение исключены из Git. `init-db` создаёт недостающие таблицы, не сбрасывает данные. `seed-demo` атомарно загружает только известное синтетическое начальное состояние: четыре текстовых источника и одну тему. Точный повтор возвращает `unchanged`, сохраняет решение и историю. Изменённая фикстура или посторонняя непустая база отклоняются; для нового эксперимента задайте отдельный `APP_DB_PATH`, не удаляйте существующую базу.
+
+## Проверка HTTP и сохранения
+
+Во втором PowerShell-терминале, из корня репозитория:
+
+```powershell
+$baseUrl = 'http://127.0.0.1:8000/api/v1'
+Invoke-RestMethod "$baseUrl/health" | ConvertTo-Json -Depth 10
+$cards = @(Invoke-RestMethod "$baseUrl/topics")
+$topicId = $cards[0].topic.topic_id
+$card = Invoke-RestMethod "$baseUrl/topics/$topicId"
+$card | ConvertTo-Json -Depth 20
+Invoke-RestMethod "$baseUrl/sources/DEMO-T001" | ConvertTo-Json -Depth 10
+$decision = Get-Content -Raw -Encoding UTF8 data/contracts/decision.json | ConvertFrom-Json
+$decision.version = $card.topic.version
+$body = [System.Text.Encoding]::UTF8.GetBytes(($decision | ConvertTo-Json))
+Invoke-RestMethod "$baseUrl/topics/$topicId/decision" -Method Patch -ContentType 'application/json; charset=utf-8' -Body $body
+```
+
+После остановки и повторного запуска сервера GET той же карточки показывает `needs_research`, владельца и событие в `history`. Счётчик остаётся 4, `requester_count=null`: идентификаторов заявителей нет. Повтор PATCH со старой `version` даёт `409 VERSION_CONFLICT`; неполное решение — `422 VALIDATION_ERROR` без повторения входных данных в ошибке. `version` должна быть целым JSON-числом: строки, bool и дробные значения отвергаются с 422. Решение и история сохраняются одной транзакцией; ошибка записи истории откатывает и изменение темы.
+
+Доступные ручки:
+
+| Метод и путь | Результат этапа 1 |
+|---|---|
+| `GET /api/v1/health` | Состояние сервера/SQLite отдельно от моделей |
+| `GET /api/v1/topics` | Тестовые карточки; фильтр `support_level=single\|repeated`, по умолчанию repeated |
+| `GET /api/v1/topics/{topic_id}` | Тема, программные счётчики, источники и история |
+| `GET /api/v1/sources/{source_id}` | Синтетический текст, подготовленные фрагменты и потребности |
+| `PATCH /api/v1/topics/{topic_id}/decision` | Только `needs_research`, с `owner`, `reason`, ожидаемой `version` |
+| `GET /openapi.json` | Локальная OpenAPI-схема реализованного HTTP API, включая ошибки |
+
+Другие корректно заполненные бизнес-решения пока дают `501 FEATURE_NOT_IMPLEMENTED`; отсутствующие обязательные поля — `422`. Импорт, запуски, разрешение review, merge, exclude и отчёт пока не подключены. Неподдерживаемых ручек нет, они возвращают `404`. Период и остальные фильтры списка ещё не реализованы; их передача даёт `422 UNSUPPORTED_FILTER`, а не молчаливую выдачу без фильтра. Swagger/ReDoc отключены, поскольку стандартные страницы загружают ресурсы с внешнего CDN. В работающем приложении внешних запросов нет.
+
+## Режим и модели
+
+`APP_MODEL_MODE=replay` — выбранная конфигурация, **не обещание работоспособного replay**. Сейчас health возвращает `processing_state=not_implemented`, три `REPLAY_NOT_IMPLEMENTED`, `replay_record_count=0`, `replay_origins=[]`. Карточка имеет `synthetic=true`, `data_origin=authored`, `analysis_mode=null`: это подготовленное состояние, не сохранённый ответ модели.
+
+В `live` без адреса/ID будет `MODEL_NOT_CONFIGURED`. С заполненными адресом/ID — `MODEL_ADAPTER_NOT_IMPLEMENTED`, `checked_at=null`: доступность не проверялась, протокол неизвестен. Токены не попадают в health. Вызов заглушки gateway выбрасывает `GatewayUnavailable` с явным кодом; автоматического переключения режимов и фиктивных успешных ответов нет. Реальные внутренние модели, качество и скорость пока не проверены.
+
+## Контракты и примеры
+
+Общий контракт v1 — `backend/app/schemas.py`. Объекты запрещают неизвестные поля, даты-время требуют часовой пояс. В `data/contracts/examples.json` находятся **16 синтетических образцов форматов**, а не результаты выполненных операций. Аудиоматериал там показывает только форму JSON; файл аудио не поставляется. `demo_state.json` — отдельное вручную подготовленное начальное состояние; оно не заменяет импорт участника 1 и не входит в оценку качества моделей.
+
+Из `backend/`:
+
+```powershell
+..\.venv\Scripts\python.exe -X utf8 -m app.cli validate-examples
+..\.venv\Scripts\python.exe -X utf8 -m app.cli export-schemas
+..\.venv\Scripts\python.exe -m pytest -q
+```
+
+Первая команда валидирует все 16 примеров и ссылки/цитаты тестового состояния, не меняя базу. Для этой текстовой фикстуры каждый подготовленный фрагмент должен дословно входить в исходное обращение; выдуманный текст и ASR/VL-фрагменты без материалов отвергаются. Вторая команда сохраняет самостоятельные JSON Schema в `var/contracts/schemas.json`. Общие схемы результата нормализации и потребностей не подтверждают безопасность файла или истинность распознавания: эти проверки добавляют владельцы сервисов. Итоговый `TopicAssignment` — серверная структура; модель возвращает только `BatchAssignment`, без права объявить `new` и установить полноту поиска.
+
+Тестовые базы создаются в уникальных каталогах `var/pytest/<uuid>/`, отдельно от рабочей БД. Это устраняет наблюдавшийся в пользовательском PowerShell сбой `PermissionError: WinError 5` при доступе к системному `Temp/pytest-of-user`: тогда 4 теста прошли, а 18 завершились ошибкой подготовки временного каталога. Права системного Temp не меняются, чужие временные данные не удаляются. Каталоги тестов остаются в игнорируемом `var/` для диагностики. После исправления все 22 теста проходят и при специально непригодном системном временном каталоге pytest.
+
+## Передача команде
+
+**Участник 1:** `TicketInput`, `MaterialInput`, `Fragment`, `NormalizedDocument`, `MaterialError`, `ImportIssue`, `ImportPreview/Result`. Ошибка manifest может не иметь `source_id`; у invalid preview может отсутствовать `dataset_id`. `material.path` — имя из manifest, не серверный путь. Интерфейсы `AsrGateway.transcribe(ApprovedAsset)` и `VisionGateway.describe(ApprovedAsset)` синхронные. Проверка файлов, маскирование, нормализация, импорт, `imports_api.py` и реальные ASR/VL принадлежат участнику 1. `ApprovedAsset` создаётся сервером только после проверки пути/файла. Маскирование текстовых полей выполняется до сохранения, записи replay и текстовой модели; звук и пиксели регулярными выражениями не обезличиваются. Контракт регистрации файлов/версий источников в SQLite ещё предстоит реализовать совместно; `seed-demo` для этого не использовать.
+
+**Участник 2:** `ExtractedNeed`, `EvidenceRef`, `TopicPassport`, `BatchAssignment`, `TopicAssignment`, `ReviewItem`, `Run`, `RecordingMeta`. Текстовый gateway: `generate(TextRequest, response_schema) -> GatewayResult`, адаптер обязан валидировать ответ до возврата. `TextRequest` содержит operation, prompt/version, JSON-данные и параметры; `GatewayResult` — типизированный value и metadata. Паспортные примеры имеют text и evidence_refs, explicit_request — bool. Промпты, извлечение и группировка не реализованы. Полный снимок каталога, `catalog_revision`, детерминированные ID и сохранение назначений подключает участник 3 на следующем этапе. Текущая фикстура использует постоянное пространство UUIDv5; алгоритм хеша настоящего импорта требуется согласовать с участником 1, его нельзя выводить из тестовой фикстуры.
+
+**Участник 4:** HTTP-ручки выше, `/openapi.json`, `TopicDetail`, `SourceDetail`, `DecisionUpdate`, `ErrorResponse` и `data/contracts/decision.json`. Показывать synthetic, authored и отсутствие анализа. Подтверждать сохранение только после HTTP 200, при 409 перечитать карточку. Не показывать несуществующий запуск или готовность моделей. Остальной HTTP-контракт в ExecPlan — будущая интеграция, не работающий API.
+
+Синхронные gateways рассчитаны на будущий последовательный pipeline в серверном worker. Сейчас нет обработчика запусков, checkpoint, настоящего replay, медиа и frontend. SQLite-схема этапа 1 хранит только тестовый путь; история версий источников и полный жизненный цикл требуют последующих изменений без сброса решений.
+
+## Фактически выполненные проверки
+
+2026-11-04, после проверки перед передачей: Python 3.13.0, `pip check` — без нарушенных зависимостей; `pytest -q` — **22 passed**; 16 JSON-примеров и тестовая фикстура валидны. Дополнительно проверены строгий тип version, конкурентные сохранения, откат изменения темы при сбое истории, атомарность seed при сбое, связь фрагментов с исходным текстом, отказ неподдерживаемых фильтров и отсутствие тестовых секретов в health/сериализации настроек. В 23 изменённых/новых текстовых файлах признаков ключей и заполненных конфигурационных токенов не обнаружено; единственный токен в тесте — явно синтетический sentinel. `.env`, база и `.venv` исключены из состава изменений.
+
+Есть одно DeprecationWarning при импорте `Starlette 0.46.2 TestClient`: обращение к `anyio.abc.BlockingPortal` в вычисляемом описании типа. В установленной `AnyIO 4.16.0` это устаревший alias того же класса `anyio.from_thread.BlockingPortal`; тождественность классов проверена локально. Это [известная проблема TestClient](https://github.com/Kludex/starlette/issues/3497). В текущем lock сервер работает, тесты проходят, данные и транзакции от предупреждения не зависят. Импорт приложения и настоящий Uvicorn с `-W error::DeprecationWarning` прошли: сервер TestClient не импортирует. При включении warnings-as-errors для самих тестов предупреждение остановит сбор тестов; при будущем удалении alias потребуется согласованное обновление совместимых FastAPI/Starlette/AnyIO. Зависимости и файлы site-packages не менялись, предупреждение не подавлялось.
+
+Отдельно запущен настоящий процесс Uvicorn: HTTP health, карточка, источник, OpenAPI, сохранение решения и повторное чтение после остановки/запуска процесса прошли на отдельной базе в `var/smoke-*/`. После исправлений HTTP-путь повторён с проверками 422 для неверного типа версии/неподдерживаемого фильтра и 409 для старой версии; результат в `var/review-*/result.json`. Повтор seed дал unchanged. Рабочая база при проверках не сбрасывалась. Эти результаты подтверждают только основу backend; интеграция моделей, импорт, полноценный replay и весь пользовательский сценарий пилота не проверены и не объявляются готовыми.
+
+После исправления Windows Temp повторно проверены обычный pytest и pytest с непригодным системным временным корнем — оба раза 22 passed. Проверки примеров, init-db, повторный seed, HTTP-запуск и рестарт Uvicorn с сохранением решения прошли на отдельной базе; результат в `var/terminal-fix-*/result.json`.

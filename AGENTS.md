@@ -21,7 +21,7 @@ GPN Insight — внутренний сервис анализа продукт�
 
 ## Технологический стек и устройство
 
-- Сервер: Python 3.12, FastAPI, Pydantic, httpx.
+- Сервер: Python 3.12 как исходный ориентир; для текущего backend проверен и принят Python 3.13.0 (решение в ExecPlan), FastAPI, Pydantic, httpx.
 - Хранение пилота: SQLite через стандартный `sqlite3`.
 - Интерфейс: React, TypeScript, Vite.
 - Проверки: pytest на сервере, Vitest для значимых действий интерфейса.
