@@ -1,0 +1,225 @@
+{
+  "fixture_id": "foundation-text-utf8-v2",
+  "synthetic": true,
+  "origin": "authored",
+  "sources": [
+    {
+      "source_id": "DEMO-T001",
+      "product_id": "webneft",
+      "created_at": "2026-10-01T12:00:00+03:00",
+      "text": "Нужно изменить контактный телефон в уже оформленной заявке.",
+      "requester_id": null,
+      "assets": []
+    },
+    {
+      "source_id": "DEMO-T002",
+      "product_id": "webneft",
+      "created_at": "2026-10-02T12:00:00+03:00",
+      "text": "Прошу заменить контакт для связи в созданной заявке на топливо.",
+      "requester_id": null,
+      "assets": []
+    },
+    {
+      "source_id": "DEMO-T003",
+      "product_id": "webneft",
+      "created_at": "2026-10-03T12:00:00+03:00",
+      "text": "В оформленной заявке требуется другой контактный номер.",
+      "requester_id": null,
+      "assets": []
+    },
+    {
+      "source_id": "DEMO-T004",
+      "product_id": "webneft",
+      "created_at": "2026-10-04T12:00:00+03:00",
+      "text": "Как поменять телефон для связи по уже созданной заявке?",
+      "requester_id": null,
+      "assets": []
+    }
+  ],
+  "documents": [
+    {
+      "product_id": "webneft",
+      "source_id": "DEMO-T001",
+      "content_hash": "0895507d89f028334ace7f4901e950420e73e89d551feddc07f0049a35247a29",
+      "version": 1,
+      "normalization_version": "authored-fixture-utf8-v2",
+      "fragments": [
+        {
+          "fragment_id": "2408c431-3b4c-5fa7-90e5-faa592570e51",
+          "asset_id": null,
+          "kind": "text",
+          "text": "Нужно изменить контактный телефон в уже оформленной заявке.",
+          "start_ms": null,
+          "end_ms": null,
+          "warning": null
+        }
+      ],
+      "errors": []
+    },
+    {
+      "product_id": "webneft",
+      "source_id": "DEMO-T002",
+      "content_hash": "ba4189b426957857c89df501db63522bb3aa24174cec1a6dcac6213008813089",
+      "version": 1,
+      "normalization_version": "authored-fixture-utf8-v2",
+      "fragments": [
+        {
+          "fragment_id": "411cde17-5d56-5694-af77-995f401c2164",
+          "asset_id": null,
+          "kind": "text",
+          "text": "Прошу заменить контакт для связи в созданной заявке на топливо.",
+          "start_ms": null,
+          "end_ms": null,
+          "warning": null
+        }
+      ],
+      "errors": []
+    },
+    {
+      "product_id": "webneft",
+      "source_id": "DEMO-T003",
+      "content_hash": "a1e55e2cf67ad87a1e05233c509e764a1dc34d5bf395af92fb06375763b037e7",
+      "version": 1,
+      "normalization_version": "authored-fixture-utf8-v2",
+      "fragments": [
+        {
+          "fragment_id": "4cda193f-85a3-5154-abb4-e9538e5662e8",
+          "asset_id": null,
+          "kind": "text",
+          "text": "В оформленной заявке требуется другой контактный номер.",
+          "start_ms": null,
+          "end_ms": null,
+          "warning": null
+        }
+      ],
+      "errors": []
+    },
+    {
+      "product_id": "webneft",
+      "source_id": "DEMO-T004",
+      "content_hash": "be5c5aab9f6f2357aae7a22df9693b695eb3df52e55e1a22000f8aebedbb3b7c",
+      "version": 1,
+      "normalization_version": "authored-fixture-utf8-v2",
+      "fragments": [
+        {
+          "fragment_id": "5dbba197-70f3-5b2f-8ef4-a7d11854328c",
+          "asset_id": null,
+          "kind": "text",
+          "text": "Как поменять телефон для связи по уже созданной заявке?",
+          "start_ms": null,
+          "end_ms": null,
+          "warning": null
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "needs": [
+    {
+      "need_id": "16410f04-c36a-54e8-b588-3db491fb1108",
+      "source_id": "DEMO-T001",
+      "fragment_id": "2408c431-3b4c-5fa7-90e5-faa592570e51",
+      "evidence_quote": "Нужно изменить контактный телефон в уже оформленной заявке.",
+      "scenario": "Контакт в оформленной заявке",
+      "need_type": "operational_request",
+      "statement": "Изменить контактный телефон в оформленной заявке",
+      "explicit_request": true,
+      "improvement_hypothesis": null,
+      "uncertainty_reason": null
+    },
+    {
+      "need_id": "2723bb67-410d-5fa7-bd27-bbcb8e1b8f57",
+      "source_id": "DEMO-T002",
+      "fragment_id": "411cde17-5d56-5694-af77-995f401c2164",
+      "evidence_quote": "Прошу заменить контакт для связи в созданной заявке на топливо.",
+      "scenario": "Контакт в оформленной заявке",
+      "need_type": "operational_request",
+      "statement": "Изменить контактный телефон в оформленной заявке",
+      "explicit_request": true,
+      "improvement_hypothesis": null,
+      "uncertainty_reason": null
+    },
+    {
+      "need_id": "3585d8ac-57a2-5354-a1e8-213a458f489e",
+      "source_id": "DEMO-T003",
+      "fragment_id": "4cda193f-85a3-5154-abb4-e9538e5662e8",
+      "evidence_quote": "В оформленной заявке требуется другой контактный номер.",
+      "scenario": "Контакт в оформленной заявке",
+      "need_type": "operational_request",
+      "statement": "Изменить контактный телефон в оформленной заявке",
+      "explicit_request": true,
+      "improvement_hypothesis": null,
+      "uncertainty_reason": null
+    },
+    {
+      "need_id": "8cdd492c-91bb-5d7b-8f6b-249cdeb2fc95",
+      "source_id": "DEMO-T004",
+      "fragment_id": "5dbba197-70f3-5b2f-8ef4-a7d11854328c",
+      "evidence_quote": "Как поменять телефон для связи по уже созданной заявке?",
+      "scenario": "Контакт в оформленной заявке",
+      "need_type": "operational_request",
+      "statement": "Изменить контактный телефон в оформленной заявке",
+      "explicit_request": true,
+      "improvement_hypothesis": null,
+      "uncertainty_reason": null
+    }
+  ],
+  "topic": {
+    "topic_id": "4bb8ca7e-8605-51d4-a2ba-381314b2f441",
+    "passport": {
+      "product_id": "webneft",
+      "scenario": "Контакт в оформленной заявке",
+      "need_statement": "Изменить контактный телефон в оформленной заявке",
+      "scope": "Контакт для связи по созданной заявке; смена номера для входа сюда не относится.",
+      "inclusion_examples": [
+        {
+          "text": "Просьба изменить контакт уже оформленной заявки",
+          "evidence_refs": [
+            {
+              "source_id": "DEMO-T001",
+              "fragment_id": "2408c431-3b4c-5fa7-90e5-faa592570e51",
+              "quote": "Нужно изменить контактный телефон в уже оформленной заявке."
+            }
+          ]
+        }
+      ],
+      "exclusion_examples": [],
+      "scope_confirmed": false,
+      "version": 1
+    },
+    "title": "Контактный телефон в оформленной заявке",
+    "summary": "Четыре синтетических обращения содержат просьбу изменить контакт в созданной заявке.",
+    "need_ids": [
+      "16410f04-c36a-54e8-b588-3db491fb1108",
+      "2723bb67-410d-5fa7-bd27-bbcb8e1b8f57",
+      "3585d8ac-57a2-5354-a1e8-213a458f489e",
+      "8cdd492c-91bb-5d7b-8f6b-249cdeb2fc95"
+    ],
+    "evidence": [
+      {
+        "source_id": "DEMO-T001",
+        "fragment_id": "2408c431-3b4c-5fa7-90e5-faa592570e51",
+        "quote": "Нужно изменить контактный телефон в уже оформленной заявке."
+      },
+      {
+        "source_id": "DEMO-T002",
+        "fragment_id": "411cde17-5d56-5694-af77-995f401c2164",
+        "quote": "Прошу заменить контакт для связи в созданной заявке на топливо."
+      },
+      {
+        "source_id": "DEMO-T003",
+        "fragment_id": "4cda193f-85a3-5154-abb4-e9538e5662e8",
+        "quote": "В оформленной заявке требуется другой контактный номер."
+      },
+      {
+        "source_id": "DEMO-T004",
+        "fragment_id": "5dbba197-70f3-5b2f-8ef4-a7d11854328c",
+        "quote": "Как поменять телефон для связи по уже созданной заявке?"
+      }
+    ],
+    "status": "new",
+    "owner": null,
+    "version": 1,
+    "canonical_topic_id": null
+  }
+}

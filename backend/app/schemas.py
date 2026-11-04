@@ -1,0 +1,432 @@
+"""Общие контракты v1. Проверка файлов и доказательств выполняется сервисами."""
+
+from datetime import date
+from typing import Annotated, Literal, Self
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, model_validator
+
+Identifier = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^\S+$")]
+Text = Annotated[str, Field(min_length=1, pattern=r"\S")]
+Version = Annotated[int, Field(ge=1, strict=True)]
+Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+ModelMode = Literal["live", "replay"]
+Origin = Literal["model", "authored"]
+TopicStatus = Literal[
+    "new", "needs_research", "linked", "deferred", "declined", "implemented", "merged"
+]
+BusinessStatus = Literal["needs_research", "linked", "deferred", "declined", "implemented"]
+
+
+class Contract(BaseModel):
+    # Исходный текст и цитаты сохраняются точно, без скрытого strip().
+    model_config = ConfigDict(extra="forbid")
+
+
+class MaterialInput(Contract):
+    asset_id: Identifier
+    kind: Literal["audio", "image"]
+    path: Annotated[str, Field(min_length=1, max_length=255)]
+    mime_type: Literal["audio/wav", "audio/mpeg", "image/png", "image/jpeg"]
+    source_url: str | None = None
+
+    @model_validator(mode="after")
+    def check_kind(self) -> Self:
+        if not self.mime_type.startswith("audio/" if self.kind == "audio" else "image/"):
+            raise ValueError("Вид материала не соответствует MIME-типу")
+        # Это ограничение формата manifest, не проверка безопасности файла.
+        if self.path in {".", ".."} or any(c in self.path for c in "/\\:"):
+            raise ValueError("В path нужно простое имя файла без каталогов")
+        return self
+
+
+class TicketInput(Contract):
+    source_id: Identifier
+    product_id: Literal["webneft"] = "webneft"
+    created_at: AwareDatetime
+    text: str = ""
+    requester_id: Identifier | None = None
+    assets: list[MaterialInput] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def unique_assets(self) -> Self:
+        ids = [a.asset_id for a in self.assets]
+        if len(ids) != len(set(ids)):
+            raise ValueError("asset_id внутри обращения должны быть уникальны")
+        return self
+
+
+class MaterialError(Contract):
+    source_id: Identifier
+    asset_id: Identifier | None = None
+    stage: Text
+    code: Text
+    message: Text
+
+
+class Fragment(Contract):
+    fragment_id: Identifier
+    asset_id: Identifier | None = None
+    kind: Literal["text", "asr", "vision"]
+    text: str
+    start_ms: Annotated[int, Field(ge=0)] | None = None
+    end_ms: Annotated[int, Field(ge=0)] | None = None
+    warning: str | None = None
+
+    @model_validator(mode="after")
+    def provenance(self) -> Self:
+        if (self.kind == "text") != (self.asset_id is None):
+            raise ValueError("Текст не имеет asset_id; ASR/VL должны ссылаться на материал")
+        if (self.start_ms is None) != (self.end_ms is None):
+            raise ValueError("Временные метки задаются парой")
+        if self.start_ms is not None:
+            if self.kind != "asr" or self.end_ms <= self.start_ms:
+                raise ValueError("Допустим только положительный интервал ASR")
+        return self
+
+
+class NormalizedDocument(Contract):
+    product_id: Literal["webneft"] = "webneft"
+    source_id: Identifier
+    content_hash: Sha256
+    version: Version
+    normalization_version: Text
+    fragments: list[Fragment]
+    errors: list[MaterialError] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def unique_fragments(self) -> Self:
+        ids = [f.fragment_id for f in self.fragments]
+        if len(ids) != len(set(ids)):
+            raise ValueError("fragment_id должны быть уникальны")
+        if any(e.source_id != self.source_id for e in self.errors):
+            raise ValueError("Ошибка должна относиться к этому источнику")
+        return self
+
+
+class EvidenceRef(Contract):
+    source_id: Identifier
+    fragment_id: Identifier
+    quote: Text
+
+
+class ExtractedNeed(Contract):
+    need_id: Identifier
+    source_id: Identifier
+    fragment_id: Identifier
+    evidence_quote: Text
+    scenario: Text
+    need_type: Literal["problem", "question", "operational_request", "feature_request"]
+    statement: Text
+    explicit_request: bool
+    improvement_hypothesis: Text | None = None
+    uncertainty_reason: Text | None = None
+
+
+class PassportExample(Contract):
+    text: Text
+    evidence_refs: Annotated[list[EvidenceRef], Field(min_length=1)]
+
+
+class TopicPassport(Contract):
+    product_id: Literal["webneft"] = "webneft"
+    scenario: Text
+    need_statement: Text
+    scope: Text
+    inclusion_examples: list[PassportExample]
+    exclusion_examples: list[PassportExample] = Field(default_factory=list)
+    scope_confirmed: bool = False
+    version: Version
+
+
+class BatchAssignment(Contract):
+    """Ответ модели: серверные признаки полноты здесь запрещены."""
+
+    decision: Literal["match", "review", "provisional_no_match"]
+    matched_topic_id: Identifier | None = None
+    candidate_topic_ids: list[Identifier] = Field(default_factory=list)
+    reason: Text
+    evidence_refs: Annotated[list[EvidenceRef], Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def match_target(self) -> Self:
+        if (self.decision == "match") != (self.matched_topic_id is not None):
+            raise ValueError("matched_topic_id задаётся только для match")
+        return self
+
+
+class TopicAssignment(Contract):
+    """Итог сервера, а не допустимая схема ответа модели."""
+
+    need_id: Identifier
+    decision: Literal["match", "review", "new"]
+    matched_topic_id: Identifier | None = None
+    candidate_topic_ids: list[Identifier] = Field(default_factory=list)
+    reason: Text
+    evidence_refs: Annotated[list[EvidenceRef], Field(min_length=1)]
+    passport_versions: dict[str, Version]
+    catalog_revision: Annotated[int, Field(ge=0)]
+    total_topic_count: Annotated[int, Field(ge=0)]
+    searched_topic_count: Annotated[int, Field(ge=0)]
+    candidate_set_complete: bool
+    search_truncated: bool
+    mode: ModelMode
+
+    @model_validator(mode="after")
+    def completeness(self) -> Self:
+        if self.searched_topic_count > self.total_topic_count:
+            raise ValueError("Число проверенных тем превышает размер каталога")
+        if self.search_truncated == self.candidate_set_complete:
+            raise ValueError("Признаки полноты поиска должны быть противоположны")
+        if self.candidate_set_complete and self.searched_topic_count != self.total_topic_count:
+            raise ValueError("Полный поиск требует проверки всего снимка")
+        if (self.decision == "match") != (self.matched_topic_id is not None):
+            raise ValueError("matched_topic_id задаётся только для match")
+        if self.decision == "new" and not self.candidate_set_complete:
+            raise ValueError("new запрещён при неполном поиске")
+        return self
+
+
+class ImportCounts(Contract):
+    inserted: Annotated[int, Field(ge=0)] = 0
+    updated: Annotated[int, Field(ge=0)] = 0
+    unchanged: Annotated[int, Field(ge=0)] = 0
+    invalid: Annotated[int, Field(ge=0)] = 0
+
+
+DatasetId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
+
+
+class ImportIssue(Contract):
+    code: Text
+    message: Text
+    source_id: Identifier | None = None
+    asset_id: Identifier | None = None
+    field: Text | None = None
+
+
+class ImportPreview(Contract):
+    # При неразбираемом manifest идентификатор набора ещё неизвестен.
+    dataset_id: DatasetId | None = None
+    status: Literal["valid", "invalid"]
+    counts: ImportCounts
+    errors: list[ImportIssue] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    can_commit: bool
+
+    @model_validator(mode="after")
+    def consistent_status(self) -> Self:
+        valid = not self.errors and self.counts.invalid == 0
+        if self.can_commit != valid or (self.status == "valid") != valid:
+            raise ValueError("Статус preview не согласован с ошибками")
+        if valid and self.dataset_id is None:
+            raise ValueError("Корректный набор должен иметь dataset_id")
+        return self
+
+
+class ImportResult(Contract):
+    dataset_id: DatasetId
+    counts: ImportCounts
+    imported_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def committed(self) -> Self:
+        if self.counts.invalid:
+            raise ValueError("Успешный атомарный импорт не содержит invalid")
+        return self
+
+
+class ReviewResolution(Contract):
+    action: Literal["attach", "create", "insufficient_data", "merge", "keep_separate"]
+    reason: Text
+    author: Text
+    resolved_at: AwareDatetime
+    topic_id: Identifier | None = None
+
+
+class ReviewItem(Contract):
+    review_id: Identifier
+    version: Version
+    kind: Literal["assignment", "duplicate"]
+    need_ids: list[Identifier] = Field(default_factory=list)
+    topic_ids: list[Identifier] = Field(default_factory=list)
+    candidate_topic_ids: list[Identifier] = Field(default_factory=list)
+    reason: Text
+    evidence_refs: list[EvidenceRef]
+    status: Literal["open", "resolved", "insufficient_data"] = "open"
+    resolution: ReviewResolution | None = None
+
+    @model_validator(mode="after")
+    def check_resolution(self) -> Self:
+        if self.kind == "assignment" and (not self.need_ids or self.topic_ids):
+            raise ValueError("Assignment review требует потребности, а не пару тем")
+        if self.kind == "duplicate" and (len(self.topic_ids) != 2 or len(set(self.topic_ids)) != 2 or self.need_ids):
+            raise ValueError("Duplicate review требует две разные темы")
+        if (self.status == "open") != (self.resolution is None):
+            raise ValueError("Закрытый review требует решения; открытый его не имеет")
+        if self.resolution:
+            action = self.resolution.action
+            allowed = {"attach", "create", "insufficient_data"} if self.kind == "assignment" else {"merge", "keep_separate"}
+            if action not in allowed:
+                raise ValueError("Действие не соответствует виду review")
+            if (self.status == "insufficient_data") != (action == "insufficient_data"):
+                raise ValueError("Статус review не соответствует решению")
+            if action in {"attach", "merge"} and not self.resolution.topic_id:
+                raise ValueError("Для действия нужна целевая тема")
+        return self
+
+
+class DecisionFields(Contract):
+    owner: Text
+    reason: Text
+    existing_issue_ref: Text | None = None
+    review_after: date | None = None
+    implemented_at: AwareDatetime | None = None
+    implementation_comment: Text | None = None
+
+    def check_status_fields(self, status: str) -> None:
+        if status == "linked" and not self.existing_issue_ref:
+            raise ValueError("Для передачи в разработку нужна ссылка или идентификатор задачи")
+        if status == "deferred" and self.review_after is None:
+            raise ValueError("Для отложенной темы нужна дата пересмотра")
+        if status == "implemented" and (self.implemented_at is None or not self.implementation_comment):
+            raise ValueError("Для реализации нужны дата и описание результата")
+
+
+class DecisionUpdate(DecisionFields):
+    status: BusinessStatus
+    version: Version
+
+    @model_validator(mode="after")
+    def required_fields(self) -> Self:
+        self.check_status_fields(self.status)
+        return self
+
+
+class DecisionEvent(DecisionFields):
+    event_id: Identifier
+    topic_id: Identifier
+    previous_status: TopicStatus
+    new_status: TopicStatus
+    occurred_at: AwareDatetime
+    topic_version: Version
+
+    @model_validator(mode="after")
+    def required_fields(self) -> Self:
+        self.check_status_fields(self.new_status)
+        return self
+
+
+class Topic(Contract):
+    topic_id: Identifier
+    passport: TopicPassport
+    title: Text
+    summary: Text
+    need_ids: list[Identifier]
+    evidence: list[EvidenceRef]
+    status: TopicStatus = "new"
+    owner: Text | None = None
+    version: Version = 1
+    canonical_topic_id: Identifier | None = None
+
+    @model_validator(mode="after")
+    def canonical(self) -> Self:
+        if (self.status == "merged") != (self.canonical_topic_id is not None):
+            raise ValueError("Только merged содержит canonical_topic_id")
+        if self.canonical_topic_id == self.topic_id:
+            raise ValueError("Тема не может ссылаться сама на себя")
+        if len(self.need_ids) != len(set(self.need_ids)):
+            raise ValueError("Потребности темы должны быть уникальны")
+        return self
+
+
+class TopicStats(Contract):
+    ticket_count: Annotated[int, Field(ge=0)]
+    requester_count: Annotated[int, Field(ge=0)] | None
+    weekly_counts: dict[str, int]
+    first_seen: AwareDatetime | None
+    last_seen: AwareDatetime | None
+    support_level: Literal["single", "repeated"]
+    new_ticket_count_since_decision: Annotated[int, Field(ge=0)]
+    post_implementation_ticket_count: Annotated[int, Field(ge=0)]
+    review_due: bool
+
+
+class SourceDetail(Contract):
+    ticket: TicketInput
+    document: NormalizedDocument
+    needs: list[ExtractedNeed]
+    synthetic: Literal[True] = True
+    data_origin: Literal["authored"] = "authored"
+
+
+class TopicDetail(Contract):
+    topic: Topic
+    stats: TopicStats
+    sources: list[SourceDetail]
+    history: list[DecisionEvent]
+    model_mode: ModelMode
+    analysis_mode: ModelMode | None = None
+    synthetic: Literal[True] = True
+    data_origin: Literal["authored"] = "authored"
+
+
+class RecordingMeta(Contract):
+    request_hash: Sha256
+    prompt_hash: Sha256 | None = None
+    normalization_hash: Sha256
+    model_id: Text
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    origin: Origin
+    recording_set_version: Text
+
+
+class Run(Contract):
+    run_id: Identifier
+    product_id: Literal["webneft"] = "webneft"
+    mode: ModelMode
+    state: Literal["queued", "running", "completed", "completed_with_errors", "failed", "interrupted"]
+    stage: Text
+    successful_materials: Annotated[int, Field(ge=0)] = 0
+    failed_materials: Annotated[int, Field(ge=0)] = 0
+    total_materials: Annotated[int, Field(ge=0)] = 0
+    coverage: Annotated[float, Field(ge=0, le=1)] | None = None
+    errors: list[MaterialError] = Field(default_factory=list)
+    created_at: AwareDatetime
+    started_at: AwareDatetime | None = None
+    finished_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def coverage_from_counts(self) -> Self:
+        if self.successful_materials + self.failed_materials > self.total_materials:
+            raise ValueError("Обработанных материалов больше, чем всего материалов")
+        expected = self.successful_materials / self.total_materials if self.total_materials else None
+        if self.coverage != expected:
+            raise ValueError("Покрытие должно вычисляться по успешным материалам")
+        if self.started_at and self.started_at < self.created_at:
+            raise ValueError("Начало запуска раньше его создания")
+        if self.finished_at and self.finished_at < (self.started_at or self.created_at):
+            raise ValueError("Окончание запуска раньше его начала")
+        return self
+
+
+class ModelAvailability(Contract):
+    status: Literal["available", "unavailable", "not_checked", "not_configured", "not_implemented"]
+    configured: bool
+    checked_at: AwareDatetime | None = None
+    code: Text
+    message: Text
+
+
+class Health(Contract):
+    status: Literal["ok"] = "ok"
+    model_mode: ModelMode
+    processing_state: Literal["idle", "busy", "not_implemented"] = "not_implemented"
+    available_models: dict[Literal["text", "asr", "vision"], ModelAvailability]
+    replay_origins: list[Origin] = Field(default_factory=list)
+    replay_record_count: Annotated[int, Field(ge=0)] = 0
+
+
+class ErrorResponse(Contract):
+    code: Text
+    message: Text
+    run_id: Identifier | None = None
