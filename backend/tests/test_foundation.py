@@ -1,4 +1,5 @@
 import json
+import re
 import socket
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -276,3 +277,32 @@ def test_health_and_settings_do_not_expose_tokens(settings, mode):
         response = client.get("/api/v1/health")
         assert response.status_code == 200 and token not in response.text
         assert all(m["status"] != "available" for m in response.json()["available_models"].values())
+
+
+def test_russian_examples_survive_files_http_and_sqlite(settings, fixture):
+    def check_strings(value):
+        if isinstance(value, str):
+            assert "??" not in value, "В синтетическом примере потеряна кодировка текста"
+        elif isinstance(value, dict):
+            for item in value.values():
+                check_strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                check_strings(item)
+
+    for name in ("demo_state.json", "examples.json", "decision.json"):
+        check_strings(json.loads((REPO_ROOT / "data/contracts" / name).read_text(encoding="utf-8")))
+    assert fixture.topic.title == "Контактный телефон в оформленной заявке"
+    assert all(re.search(r"[А-Яа-яЁё]", source.text) for source in fixture.sources)
+    update = schemas.DecisionUpdate.model_validate_json((REPO_ROOT / "data/contracts/decision.json").read_text(encoding="utf-8"))
+    assert update.owner == "Тестовый владелец"
+    repo = seed(settings, fixture)
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
+        response = client.patch(f"/api/v1/topics/{fixture.topic.topic_id}/decision", json=update.model_dump(mode="json"))
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/json; charset=utf-8"
+        assert response.json()["history"][0]["owner"] == update.owner
+        assert response.json()["history"][0]["reason"] == update.reason
+    saved = repo.get_topic(fixture.topic.topic_id, "replay")
+    assert saved.topic.owner == "Тестовый владелец"
+    assert saved.history[0].reason == update.reason

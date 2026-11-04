@@ -46,6 +46,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
+        # Windows PowerShell 5.1 иначе декодирует JSON как однобайтный текст.
+        if response.headers.get("Content-Type") == "application/json":
+            response.headers["Content-Type"] = "application/json; charset=utf-8"
         response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; media-src 'self'; frame-ancestors 'none'"
         return response
 
