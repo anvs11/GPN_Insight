@@ -49,18 +49,49 @@ def validate_examples(path: Path) -> int:
     return len(examples)
 
 
+def validate_http_examples(path: Path) -> int:
+    bundle = json.loads(path.read_text(encoding="utf-8"))
+    if bundle.get("synthetic") is not True or bundle.get("purpose") != "http_contract_examples_only":
+        raise ValueError("HTTP-примеры должны быть явно синтетическими")
+    expected = {
+        "empty_topics": (200, None), "topic": (200, schemas.TopicDetail),
+        "source": (200, schemas.SourceDetail),
+        "version_conflict": (409, schemas.ErrorResponse),
+        "validation_error": (422, schemas.ErrorResponse),
+    }
+    responses = bundle["responses"]
+    if responses.keys() != expected.keys():
+        raise ValueError("Нужны примеры всех согласованных HTTP-ответов")
+    for name, (status_code, model) in expected.items():
+        example = responses[name]
+        if example["status_code"] != status_code:
+            raise ValueError("Неверный HTTP-статус примера")
+        if model is None:
+            if example["body"] != []:
+                raise ValueError("Пустая база должна возвращать пустой список")
+        else:
+            value = model.model_validate(example["body"])
+            if name in {"topic", "source"} and (not value.synthetic or value.data_origin != "authored"):
+                raise ValueError("Примеры ответов должны сохранять synthetic/authored")
+    for name in ("decision.json", "decision-new.json"):
+        schemas.DecisionUpdate.model_validate_json((path.parent / name).read_text(encoding="utf-8"))
+    return len(expected) + 2
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="GPN Insight — команды этапа 1")
+    parser = argparse.ArgumentParser(description="GPN Insight — команды backend")
     parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas"])
     parser.add_argument("--fixture", type=Path, default=REPO_ROOT / "data/contracts/demo_state.json")
     parser.add_argument("--examples", type=Path, default=REPO_ROOT / "data/contracts/examples.json")
+    parser.add_argument("--http-examples", type=Path, default=REPO_ROOT / "data/contracts/http-examples.json")
     parser.add_argument("--output", type=Path, default=REPO_ROOT / "var/contracts/schemas.json")
     args = parser.parse_args()
     try:
         if args.command == "validate-examples":
             count = validate_examples(args.examples)
+            http_count = validate_http_examples(args.http_examples)
             fixture = load_fixture(args.fixture)
-            print(f"Примеры: {count}; источников тестовой карточки: {len(fixture.sources)}; synthetic=true, origin=authored. База не изменена.")
+            print(f"Примеры: {count}; HTTP-примеры: {http_count}; источников тестовой карточки: {len(fixture.sources)}; synthetic=true, origin=authored. База не изменена.")
         elif args.command == "export-schemas":
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -75,7 +106,7 @@ def main() -> int:
                 inserted = Repository(path).seed_demo(load_fixture(args.fixture))
                 print("Тестовая карточка добавлена; synthetic=true, origin=authored. Анализ моделей не выполнялся." if inserted else "Точное повторение: unchanged. Решения и история сохранены.")
         return 0
-    except (ValidationError, ValueError, OSError, RepositoryError, sqlite3.Error, RuntimeError) as exc:
+    except (ValidationError, ValueError, KeyError, TypeError, AttributeError, OSError, RepositoryError, sqlite3.Error, RuntimeError) as exc:
         # Не выводим ValidationError целиком: он может включать входные данные.
         code = exc.code if isinstance(exc, RepositoryError) else "COMMAND_FAILED"
         print(f"{code}: команда не завершена. Проверьте файл, контракт и доступ к базе.", file=sys.stderr)

@@ -39,8 +39,10 @@ def source(source_id: str, request: Request) -> SourceDetail:
 
 @router.patch("/topics/{topic_id}/decision", response_model=TopicDetail)
 def decision(topic_id: str, update: DecisionUpdate, request: Request) -> TopicDetail:
-    if update.status != "needs_research":
-        raise RepositoryError("FEATURE_NOT_IMPLEMENTED", "Сейчас можно сохранить только решение «Исследуется». Для остальных решений требуется следующая версия сервиса.", 501)
+    if update.status not in {"new", "needs_research"}:
+        raise RepositoryError("FEATURE_NOT_IMPLEMENTED", "Сейчас доступны статусы «Новое» и «Исследуется». Для остальных решений требуется следующая версия сервиса.", 501)
     repo = request.app.state.repository
-    repo.record_decision(topic_id, update)
-    return repo.get_topic(topic_id, request.app.state.settings.app_model_mode)
+    # Ответ содержит именно сохранённую версию даже при параллельном PATCH.
+    with repo.transaction() as tx:
+        tx.record_decision(topic_id, update)
+        return tx.get_topic(topic_id, request.app.state.settings.app_model_mode)

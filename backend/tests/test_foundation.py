@@ -217,13 +217,14 @@ def test_unsupported_filters_do_not_return_unfiltered_success(settings, fixture)
         assert response.json()["code"] == "UNSUPPORTED_FILTER"
 
 
-def test_failed_history_insert_rolls_back_decision(settings, fixture):
+@pytest.mark.parametrize("status", ["new", "needs_research"])
+def test_failed_history_insert_rolls_back_decision(settings, fixture, status):
     repo = seed(settings, fixture)
     with connection(repo.path) as db:
         db.execute("CREATE TRIGGER reject_decision BEFORE INSERT ON decision_events BEGIN SELECT RAISE(ABORT, 'TEST_INSERT_FAILURE'); END")
     with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
         response = client.patch(f"/api/v1/topics/{fixture.topic.topic_id}/decision", json={
-            "status": "needs_research", "owner": "Тест", "reason": "DO_NOT_ECHO", "version": 1,
+            "status": status, "owner": "Тест", "reason": "DO_NOT_ECHO", "version": 1,
         })
         assert response.status_code == 503
         assert "TEST_INSERT_FAILURE" not in response.text and "DO_NOT_ECHO" not in response.text
