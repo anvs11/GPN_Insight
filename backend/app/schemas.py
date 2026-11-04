@@ -295,7 +295,7 @@ class DecisionFields(Contract):
 
 
 class DecisionUpdate(DecisionFields):
-    status: BusinessStatus
+    status: BusinessStatus | Literal["new"]
     version: Version
 
     @model_validator(mode="after")
