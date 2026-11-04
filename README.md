@@ -8,6 +8,67 @@
 
 Проверено на Windows, **Python 3.13.0**. Node.js/npm для backend не нужны. Прямые зависимости указаны в `backend/requirements.in`, все фактически установленные версии зафиксированы в `backend/requirements.txt`. Python 3.12 на этой машине не проверялся. `tzdata` нужна для `Europe/Moscow` на Windows.
 
+## Текстовый preview участника 1 (U1-01)
+
+Реализован только Python-сервис `app.ingestion.importer.import_tickets(manifest, assets=(), dry_run=True, repository=...)`. Manifest — UTF-8 JSON (байты или строка) с ровно тремя полями: `dataset_id`, явный boolean `synthetic`, `tickets`. Схемы `TicketInput` и `DatasetRegistration` переиспользуются; `product_id` — только `webneft`. `synthetic=false` не подменяется сервером и само по себе не является разрешением на реальные данные. В `data/demo/manifest.json` четыре явно синтетических текстовых обращения; это ещё не полный мультимодальный demo-набор.
+
+Пределы этого среза: 1 МиБ (1 048 576 байт) manifest, 100 тикетов, 32 уровня вложенности JSON. Повторные ключи, неизвестные поля, неверные даты без часового пояса, некорректные Unicode/числа и ID отвергаются. Вложения в manifest и переданные `assets` пока отклоняются целиком. Проверка останавливается на первой ошибке (`counts.invalid=1`, остальные counts=0); она не выдаёт частичный результат и не обещает полного списка ошибок. На корректном входе `counts` вычисляются по согласованному снимку SQLite, а предупреждение помечает их предварительными.
+
+Для вызова из Python при рабочей папке `backend/`:
+
+```python
+from app.config import REPO_ROOT
+from app.ingestion.importer import import_tickets
+from app.repositories import Repository
+
+preview = import_tickets(
+    (REPO_ROOT / "data/demo/manifest.json").read_bytes(),
+    dry_run=True,
+    repository=Repository(REPO_ROOT / "var/preview-check.db"),
+)
+print(preview.model_dump_json(indent=2))
+```
+
+Это отдельная проверочная БД, не автоматически создаваемая фикстура: подготовьте SQLite v2 заранее отдельной существующей командой `init-db` с соответствующим `APP_DB_PATH`. Сам preview использует `mode=ro`, не создаёт/мигрирует БД, не вызывает регистрацию, модели или FastAPI lifespan. Отсутствие базы даёт `PREVIEW_DATABASE_MISSING`, неподдержанная версия — `PREVIEW_SCHEMA_UNSUPPORTED`, ошибка чтения/схемы — `PREVIEW_DATABASE_UNAVAILABLE`; `can_commit=false`. До нормализации тексты остаются оригинальными, автоматического маскирования в этом срезе нет.
+
+`dry_run=False` явно возвращает `IMPORT_NOT_IMPLEMENTED`. Новых HTTP-ручек и CLI-команды импорта нет; сквозной импорт/анализ ещё не готов. `source_content_hash()` выделен из регистрации и используется обоими путями без изменения прежних хешей; подробнее — `docs/STORAGE.md`.
+
+Preview поддерживает обычный журнал SQLite, используемый проектом по умолчанию. WAL-база отклоняется до открытия SQLite с `PREVIEW_JOURNAL_UNSUPPORTED`: даже `mode=ro` может создать `-wal/-shm`. Автоматически менять режим существующей БД preview не будет. Для проверки используйте отдельную SQLite v2 с обычным журналом. Таблицы/поля источников проверяются и при пустом массиве tickets; неполная схема не даёт успешный preview.
+
+Проверено после ревью на macOS ARM64, Python 3.13.0 с существующим `backend/requirements.txt`: из `backend/` команды `../.venv/bin/python -m pytest -q tests/test_import_preview.py` — 64 passed; полный `../.venv/bin/python -m pytest -q` — 126 passed, одно прежнее предупреждение Starlette/AnyIO; `../.venv/bin/python -m app.cli validate-examples` — 16 общих/7 HTTP-примеров; `pip check` — без нарушений. На Windows используются эквивалентные пути `..\.venv\Scripts\python.exe`. Контрактные JSON и lock-файл не менялись.
+
+### Повторяемая ручная проверка preview
+
+Из `backend/` на macOS/Linux:
+
+```sh
+../.venv/bin/python -m scripts.check_import_preview
+../.venv/bin/python -m pytest -q
+../.venv/bin/python -m app.cli validate-examples
+../.venv/bin/python -m pip check
+```
+
+В PowerShell из `backend/` используйте `..\.venv\Scripts\python.exe -X utf8` вместо `../.venv/bin/python` с теми же аргументами. `scripts.check_import_preview` — отдельная проверочная процедура, а не CLI-команда загрузки. Она явно готовит новую синтетическую БД в уникальном `var/preview-review-<uuid>/`, сохраняет тестовое решение и регистрирует подготовленные источники через существующий Repository только для подготовки повторов; рабочие БД и `.env` не используются. Сам `import_tickets` вызывается для preview и проверки отказа `dry_run=False`. Каждый вызов сравнивает файлы до/после и сохранённую карточку. Отчёт создаёт скрипт после проверок, не preview.
+
+Ожидаемый вывод первой команды (фактически получен при ревью):
+
+```text
+synthetic=true; mode=preview
+new-sources: valid inserted=4 updated=0 unchanged=0 invalid=0
+repeat: valid inserted=0 updated=0 unchanged=4 invalid=0
+delta: valid inserted=1 updated=1 unchanged=2 invalid=0
+duplicate-key: invalid JSON_DUPLICATE_KEY
+media: invalid MEDIA_NOT_SUPPORTED
+missing-db: invalid PREVIEW_DATABASE_MISSING
+write-mode: invalid IMPORT_NOT_IMPLEMENTED
+wal: invalid PREVIEW_JOURNAL_UNSUPPORTED
+incomplete-db: invalid PREVIEW_DATABASE_UNAVAILABLE
+PASS: preview files unchanged; decision/history/count=4 preserved after reopen
+report: var/preview-review-<новый uuid>/result.json
+```
+
+При повторе скрипт создаёт новый каталог; прежние отчёты и решения не удаляются. Для остальных команд ожидаются `126 passed`, 16 общих/7 HTTP-примеров и `No broken requirements found`. Предупреждение Starlette/AnyIO относится к TestClient и уже описано ниже; длительность тестов и UUID будут отличаться.
+
 ## Запуск из PowerShell
 
 Из корня репозитория:

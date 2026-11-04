@@ -3,7 +3,7 @@
 import hashlib
 import json
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -28,6 +28,17 @@ class RepositoryError(Exception):
 def digest(value) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def source_content_hash(ticket: TicketInput, materials: dict[str, RegisteredMaterial]) -> str:
+    """Общий алгоритм идентичности источника для регистрации и preview."""
+    value = ticket.model_dump(mode="json")
+    value["assets"] = [
+        {"asset_id": a.asset_id, "kind": a.kind, "mime_type": a.mime_type,
+         "source_url": a.source_url, "content_hash": materials[a.asset_id].content_hash}
+        for a in sorted(ticket.assets, key=lambda a: a.asset_id)
+    ]
+    return digest(value)
 
 
 def now() -> datetime:
@@ -105,6 +116,71 @@ class StorageRepository:
             versions = tx._db.execute("SELECT version FROM source_versions WHERE product_id=? AND source_id=? ORDER BY version", (product_id, source_id)).fetchall()
             return [tx.get_source(source_id, product_id, r[0]) for r in versions]
 
+    def preview_dataset_counts(self, batch: DatasetRegistration) -> ImportCounts:
+        """Только снимок чтения существующей SQLite v2, без создания/миграции."""
+        batch = DatasetRegistration.model_validate(batch.model_dump())
+        materials = {m.asset_id: m for m in batch.materials}
+        counts = ImportCounts()
+        try:
+            if not self.path.is_file():
+                raise RepositoryError(
+                    "PREVIEW_DATABASE_MISSING",
+                    "База для проверки отсутствует. Подготовьте её отдельно по README и повторите проверку.",
+                    503,
+                )
+            # Даже mode=ro может создать -wal/-shm. Не открываем WAL-базу через SQLite.
+            with self.path.open("rb") as source:
+                header = source.read(20)
+            if header[:16] == b"SQLite format 3\x00" and header[18:20] != b"\x01\x01":
+                raise RepositoryError(
+                    "PREVIEW_JOURNAL_UNSUPPORTED",
+                    "Режим журнала базы пока не поддержан preview без записи. Используйте отдельную SQLite v2 с обычным журналом.",
+                    503,
+                )
+            # mode=ro защищает также от создания файла при гонке после is_file().
+            with closing(sqlite3.connect(self.path.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)) as db:
+                db.row_factory = sqlite3.Row
+                db.execute("PRAGMA query_only = ON")
+                db.execute("BEGIN")
+                if [r[0] for r in db.execute("SELECT version FROM schema_version")] != [2]:
+                    raise RepositoryError(
+                        "PREVIEW_SCHEMA_UNSUPPORTED",
+                        "Для проверки нужна SQLite v2. Обновите базу отдельно по README.",
+                        503,
+                    )
+                source_query = (
+                    "SELECT v.content_hash,r.synthetic,r.origin FROM source_records r "
+                    "LEFT JOIN source_versions v ON v.product_id=r.product_id AND v.source_id=r.source_id "
+                    "AND v.version=r.current_version"
+                )
+                # Проверяем нужные таблицы/поля и для пустого tickets, без чтения обращений.
+                db.execute(source_query + " LIMIT 0")
+                for ticket in batch.tickets:
+                    current = db.execute(
+                        source_query + " WHERE r.product_id=? AND r.source_id=?",
+                        (batch.product_id, ticket.source_id),
+                    ).fetchone()
+                    if current is None:
+                        counts.inserted += 1
+                    elif current["content_hash"] is None:
+                        raise sqlite3.DatabaseError("Missing current source version")
+                    elif (bool(current["synthetic"]), current["origin"]) != (batch.synthetic, batch.origin):
+                        raise RepositoryError(
+                            "SOURCE_PROVENANCE_CONFLICT",
+                            "Происхождение существующего источника нельзя незаметно изменить.",
+                        )
+                    elif current["content_hash"] == source_content_hash(ticket, materials):
+                        counts.unchanged += 1
+                    else:
+                        counts.updated += 1
+        except (sqlite3.Error, OSError) as exc:
+            raise RepositoryError(
+                "PREVIEW_DATABASE_UNAVAILABLE",
+                "Базу не удалось прочитать. Проверьте её состояние и доступ; preview ничего не сохраняет.",
+                503,
+            ) from exc
+        return counts
+
     def register_dataset(self, batch: DatasetRegistration, *, registration_id: str | None = None) -> ImportResult:
         """Только SQLite. Файлы уже проверены/перемещены участником 1 до вызова."""
         batch = DatasetRegistration.model_validate(batch.model_dump())
@@ -121,13 +197,7 @@ class StorageRepository:
             materials = {m.asset_id: m for m in batch.materials}
             counts = ImportCounts()
             for ticket in batch.tickets:
-                value = ticket.model_dump(mode="json")
-                value["assets"] = [
-                    {"asset_id": a.asset_id, "kind": a.kind, "mime_type": a.mime_type,
-                     "source_url": a.source_url, "content_hash": materials[a.asset_id].content_hash}
-                    for a in sorted(ticket.assets, key=lambda a: a.asset_id)
-                ]
-                content_hash = digest(value)
+                content_hash = source_content_hash(ticket, materials)
                 key = (batch.product_id, ticket.source_id)
                 current = db.execute("SELECT r.current_version,v.content_hash,r.synthetic,r.origin FROM source_records r JOIN source_versions v "
                                      "ON v.product_id=r.product_id AND v.source_id=r.source_id AND v.version=r.current_version "
