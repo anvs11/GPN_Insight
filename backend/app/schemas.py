@@ -1,6 +1,7 @@
 """Общие контракты v1. Проверка файлов и доказательств выполняется сервисами."""
 
 from datetime import date
+from pathlib import PurePosixPath
 from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, model_validator
@@ -41,7 +42,7 @@ class MaterialInput(Contract):
 
 class TicketInput(Contract):
     source_id: Identifier
-    product_id: Literal["webneft"] = "webneft"
+    product_id: Identifier = "webneft"
     created_at: AwareDatetime
     text: str = ""
     requester_id: Identifier | None = None
@@ -85,7 +86,7 @@ class Fragment(Contract):
 
 
 class NormalizedDocument(Contract):
-    product_id: Literal["webneft"] = "webneft"
+    product_id: Identifier = "webneft"
     source_id: Identifier
     content_hash: Sha256
     version: Version
@@ -128,7 +129,7 @@ class PassportExample(Contract):
 
 
 class TopicPassport(Contract):
-    product_id: Literal["webneft"] = "webneft"
+    product_id: Identifier = "webneft"
     scenario: Text
     need_statement: Text
     scope: Text
@@ -254,6 +255,7 @@ class ReviewItem(Contract):
     evidence_refs: list[EvidenceRef]
     status: Literal["open", "resolved", "insufficient_data"] = "open"
     resolution: ReviewResolution | None = None
+    requires_recheck: bool = False
 
     @model_validator(mode="after")
     def check_resolution(self) -> Self:
@@ -353,10 +355,13 @@ class TopicStats(Contract):
 
 class SourceDetail(Contract):
     ticket: TicketInput
-    document: NormalizedDocument
+    document: NormalizedDocument | None
     needs: list[ExtractedNeed]
-    synthetic: Literal[True] = True
-    data_origin: Literal["authored"] = "authored"
+    source_version: Version = 1
+    content_hash: Sha256 | None = None
+    requires_analysis: bool = False
+    synthetic: bool = True
+    data_origin: Literal["authored", "imported"] = "authored"
 
 
 class TopicDetail(Contract):
@@ -366,8 +371,9 @@ class TopicDetail(Contract):
     history: list[DecisionEvent]
     model_mode: ModelMode
     analysis_mode: ModelMode | None = None
-    synthetic: Literal[True] = True
-    data_origin: Literal["authored"] = "authored"
+    synthetic: bool = True
+    data_origin: Origin = "authored"
+    pending_source_ids: list[Identifier] = Field(default_factory=list)
 
 
 class RecordingMeta(Contract):
@@ -382,7 +388,7 @@ class RecordingMeta(Contract):
 
 class Run(Contract):
     run_id: Identifier
-    product_id: Literal["webneft"] = "webneft"
+    product_id: Identifier = "webneft"
     mode: ModelMode
     state: Literal["queued", "running", "completed", "completed_with_errors", "failed", "interrupted"]
     stage: Text
@@ -430,3 +436,94 @@ class ErrorResponse(Contract):
     code: Text
     message: Text
     run_id: Identifier | None = None
+
+
+class RegisteredMaterial(Contract):
+    """Метаданные уже проверенного/перемещённого файла; файловых операций нет."""
+
+    asset_id: Identifier
+    kind: Literal["audio", "image"]
+    content_hash: Sha256
+    storage_path: Text
+    original_filename: Text
+    mime_type: Literal["audio/wav", "audio/mpeg", "image/png", "image/jpeg"]
+    byte_size: Annotated[int, Field(gt=0)]
+
+    @model_validator(mode="after")
+    def server_path(self) -> Self:
+        path = PurePosixPath(self.storage_path)
+        if path.is_absolute() or any(p in {".", ".."} for p in self.storage_path.split("/")) or any(c in self.storage_path for c in "\\:"):
+            raise ValueError("storage_path должен быть серверным относительным путём внутри uploads")
+        MaterialInput(asset_id=self.asset_id, kind=self.kind, path=self.original_filename, mime_type=self.mime_type)
+        return self
+
+
+class DatasetRegistration(Contract):
+    dataset_id: DatasetId
+    product_id: Identifier = "webneft"
+    synthetic: bool
+    origin: Literal["authored", "imported"] = "imported"
+    tickets: list[TicketInput]
+    materials: list[RegisteredMaterial] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def references(self) -> Self:
+        ids = [t.source_id for t in self.tickets]
+        assets = [a for t in self.tickets for a in t.assets]
+        asset_ids = [a.asset_id for a in assets]
+        prepared = {m.asset_id: m for m in self.materials}
+        if len(ids) != len(set(ids)) or any(t.product_id != self.product_id for t in self.tickets):
+            raise ValueError("Источники набора должны быть уникальны и относиться к одному продукту")
+        if len(asset_ids) != len(set(asset_ids)) or len(prepared) != len(self.materials) or set(asset_ids) != prepared.keys():
+            raise ValueError("Каждому уникальному материалу manifest нужны ровно одни подготовленные метаданные")
+        for asset in assets:
+            material = prepared[asset.asset_id]
+            if (asset.kind, asset.path, asset.mime_type) != (material.kind, material.original_filename, material.mime_type):
+                raise ValueError("Метаданные подготовленного материала не совпадают с manifest")
+        return self
+
+
+class ImportLogEntry(Contract):
+    registration_id: Identifier
+    product_id: Identifier
+    result: ImportResult
+    synthetic: bool
+
+
+class ManualOverride(Contract):
+    override_id: Identifier
+    product_id: Identifier = "webneft"
+    source_id: Identifier
+    source_version: Version
+    need_id: Identifier
+    action: Literal["attach", "exclude", "insufficient_data"]
+    topic_id: Identifier | None = None
+    author: Text
+    reason: Text
+    created_at: AwareDatetime
+    requires_recheck: bool = False
+
+    @model_validator(mode="after")
+    def target(self) -> Self:
+        if self.action in {"attach", "exclude"} and self.topic_id is None:
+            raise ValueError("Ручное назначение/исключение требует тему")
+        if self.action == "insufficient_data" and self.topic_id is not None:
+            raise ValueError("Недостаточность данных не задаёт тему")
+        return self
+
+
+class TopicChangeEvent(Contract):
+    event_id: Identifier
+    topic_id: Identifier
+    kind: Literal["passport", "attachment", "manual_override"]
+    author: Text
+    reason: Text
+    occurred_at: AwareDatetime
+    before: dict[str, JsonValue]
+    after: dict[str, JsonValue]
+
+
+class CatalogSnapshot(Contract):
+    product_id: Identifier
+    catalog_revision: Annotated[int, Field(ge=0)]
+    topics: list[Topic]

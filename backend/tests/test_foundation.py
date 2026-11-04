@@ -4,7 +4,6 @@ import socket
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,29 +13,10 @@ from app import schemas
 from app.cli import validate_examples
 from app.config import REPO_ROOT, Settings
 from app.db import connection, initialize
-from app.demo import DemoFixture, load_fixture
+from app.demo import DemoFixture
 from app.gateways import ApprovedAsset, GatewayUnavailable, TextRequest, UnavailableGateways
 from app.main import create_app
 from app.repositories import Repository, RepositoryError
-
-
-@pytest.fixture
-def fixture():
-    return load_fixture(REPO_ROOT / "data/contracts/demo_state.json")
-
-
-@pytest.fixture
-def tmp_path():
-    # Системный Temp Windows может иметь ACL от другого запуска pytest.
-    # Уникальные каталоги проекта не требуют изменения прав или очистки чужих данных.
-    path = REPO_ROOT / "var" / "pytest" / uuid4().hex
-    path.mkdir(parents=True)
-    return path
-
-
-@pytest.fixture
-def settings(tmp_path):
-    return Settings(_env_file=None, app_db_path=tmp_path / "insight.db")
 
 
 def seed(settings, fixture):
@@ -256,11 +236,11 @@ def test_failed_seed_is_atomic(settings, fixture):
     path = settings.repo_path(settings.app_db_path)
     initialize(path)
     with connection(path) as db:
-        db.execute("CREATE TRIGGER reject_seed BEFORE INSERT ON needs BEGIN SELECT RAISE(ABORT, 'TEST_SEED_FAILURE'); END")
+        db.execute("CREATE TRIGGER reject_seed BEFORE INSERT ON stored_needs BEGIN SELECT RAISE(ABORT, 'TEST_SEED_FAILURE'); END")
     with pytest.raises(sqlite3.IntegrityError):
         Repository(path).seed_demo(fixture)
     with connection(path) as db:
-        for table in ("sources", "needs", "topics", "topic_needs", "demo_fixtures"):
+        for table in ("source_records", "source_versions", "stored_needs", "topics", "topic_need_links", "demo_fixtures", "normalized_documents"):
             assert db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
 
 
