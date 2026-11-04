@@ -21,6 +21,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         initialize(repository.path)
+        repository.interrupt_active_runs()
         yield
 
     # Swagger/ReDoc по умолчанию загружают JS с CDN. Оставляем локальный OpenAPI JSON.

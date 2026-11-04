@@ -22,6 +22,11 @@ EXAMPLE_SCHEMAS = {
     )
 }
 
+STORAGE_SCHEMAS = {cls.__name__: cls for cls in (
+    schemas.DatasetRegistration, schemas.RegisteredMaterial, schemas.ImportLogEntry,
+    schemas.ManualOverride, schemas.TopicChangeEvent, schemas.CatalogSnapshot,
+)}
+
 
 def validate_examples(path: Path) -> int:
     bundle = json.loads(path.read_text(encoding="utf-8"))
@@ -58,14 +63,14 @@ def main() -> int:
             print(f"Примеры: {count}; источников тестовой карточки: {len(fixture.sources)}; synthetic=true, origin=authored. База не изменена.")
         elif args.command == "export-schemas":
             args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in EXAMPLE_SCHEMAS.items()}, ensure_ascii=False, indent=2), encoding="utf-8")
+            args.output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
             print("JSON Schema контрактов сохранены.")
         else:
             settings = Settings()
             path = settings.repo_path(settings.app_db_path)
-            initialize(path)
+            initialized = initialize(path)
             if args.command == "init-db":
-                print("SQLite готова. Данные и решения не сбрасывались.")
+                print(f"SQLite v{initialized.version} готова. Данные и решения не сбрасывались." + (" Перед миграцией создана резервная копия." if initialized.backup_path else ""))
             else:
                 inserted = Repository(path).seed_demo(load_fixture(args.fixture))
                 print("Тестовая карточка добавлена; synthetic=true, origin=authored. Анализ моделей не выполнялся." if inserted else "Точное повторение: unchanged. Решения и история сохранены.")
