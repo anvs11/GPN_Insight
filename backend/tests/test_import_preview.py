@@ -101,7 +101,7 @@ def test_preview_uses_readonly_sqlite_connection(repo, manifest, monkeypatch):
 
 @pytest.mark.parametrize("state", ["missing", "empty", "corrupt", "v1", "unknown", "missing_tables"])
 def test_database_failure_does_not_create_or_migrate(tmp_path, manifest, state):
-    path = tmp_path / "неизвестная база ? #.db"
+    path = tmp_path / "неизвестная база #.db"
     if state == "empty":
         path.touch()
     elif state == "corrupt":
@@ -170,7 +170,7 @@ def test_empty_manifest_does_not_hide_missing_source_tables(tmp_path, manifest):
     ("я" * (MAX_MANIFEST_BYTES // 2 + 1), "MANIFEST_TOO_LARGE"),
     (b"[" * (MAX_JSON_DEPTH + 1), "JSON_DEPTH_EXCEEDED"),
     ({"tickets": []}, "MANIFEST_TYPE_INVALID"),
-])
+], ids=[str(i) for i in range(17)])
 def test_invalid_json_is_rejected_before_database_access(raw, code, monkeypatch):
     def forbidden(*args, **kwargs):
         pytest.fail("Invalid manifest touched the database")
