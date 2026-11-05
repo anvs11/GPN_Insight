@@ -1,0 +1,18 @@
+{
+  "synthetic": true,
+  "purpose": "expected_replay_record_missing",
+  "entries": [
+    {
+      "schema_name": "ExtractedNeeds",
+      "model_id": "synthetic-contract-no-live-model",
+      "normalization_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "request": {
+        "operation": "extract_needs",
+        "prompt": "Этот синтетический запрос отсутствует в образце набора; ожидается REPLAY_RECORD_MISSING.",
+        "prompt_version": "contract-only-v1",
+        "data": {"synthetic": true, "text": "Синтетический неизвестный вход."},
+        "parameters": {"temperature": 0}
+      }
+    }
+  ]
+}

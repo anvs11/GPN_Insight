@@ -62,9 +62,11 @@ def test_health_never_assumes_model_success(settings, monkeypatch):
         assert response.status_code == 200
         health = response.json()
         assert health["model_mode"] == "replay"
-        assert health["processing_state"] == "not_implemented"
+        assert health["processing_state"] == "idle" and health["pipeline_ready"] is False
         assert health["replay_record_count"] == 0 and health["replay_origins"] == []
-        assert all(m["checked_at"] is None and m["code"] == "REPLAY_NOT_IMPLEMENTED" for m in health["available_models"].values())
+        assert health["available_models"]["text"]["code"] == "REPLAY_NOT_CONFIGURED"
+        assert all(m["checked_at"] is None for m in health["available_models"].values())
+        assert all(health["available_models"][kind]["code"] == "REPLAY_NOT_IMPLEMENTED" for kind in ("asr", "vision"))
         assert response.headers["x-content-type-options"] == "nosniff"
         assert client.get("/docs").status_code == 404
         assert client.get("/openapi.json").status_code == 200
@@ -81,10 +83,10 @@ def test_gateways_fail_explicitly(settings, mode):
     gateways = UnavailableGateways(settings.model_copy(update={"app_model_mode": mode}))
     asset = ApprovedAsset("synthetic", Path("nonexistent.wav"), "a" * 64, "audio/wav")
     request = TextRequest(operation="extract_needs", prompt="Пример контракта", prompt_version="example", data={})
-    for call in (lambda: gateways.generate(request, schemas.ExtractedNeed), lambda: gateways.transcribe(asset), lambda: gateways.describe(asset)):
+    for index, call in enumerate((lambda: gateways.generate(request, schemas.ExtractedNeed), lambda: gateways.transcribe(asset), lambda: gateways.describe(asset))):
         with pytest.raises(GatewayUnavailable) as error:
             call()
-        assert error.value.code == ("MODEL_NOT_CONFIGURED" if mode == "live" else "REPLAY_NOT_IMPLEMENTED")
+        assert error.value.code == ("MODEL_NOT_CONFIGURED" if mode == "live" else "REPLAY_NOT_CONFIGURED" if index == 0 else "REPLAY_NOT_IMPLEMENTED")
 
 
 def test_card_decision_survives_restart_and_exact_seed(settings, fixture):
@@ -124,7 +126,7 @@ def test_decision_errors_do_not_change_card(settings, fixture):
         response = client.patch(path, json={"status": "declined", "version": 1, "owner": "Тест", "reason": "Ещё не реализовано"})
         assert response.status_code == 501 and response.json()["code"] == "FEATURE_NOT_IMPLEMENTED"
         assert client.get("/api/v1/topics/missing").status_code == 404
-        assert client.post("/api/v1/runs", json={}).status_code == 404
+        assert client.post("/api/v1/runs", json={}).status_code == 503
     assert repo.get_topic(fixture.topic.topic_id, "replay").topic.version == 1
 
 

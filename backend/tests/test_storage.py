@@ -57,7 +57,7 @@ def test_migration_preserves_v1_and_safe_repeat(tmp_path, fixture):
     path = tmp_path / "v1.db"
     event = seed_v1(path, fixture)
     result = initialize(path)
-    assert result.version == 2 and result.migrated_from == 1 and result.backup_path.exists()
+    assert result.version == 3 and result.migrated_from == 1 and result.backup_path.exists()
     with connection(result.backup_path) as backup:
         assert backup.execute("SELECT version FROM schema_version").fetchone()[0] == 1
         assert backup.execute("SELECT body_json FROM decision_events").fetchone()[0] == event.model_dump_json()
@@ -413,7 +413,7 @@ def test_only_app_start_interrupts_unfinished_runs(repo):
     assert repo.get_run(run.run_id).state == "queued"
     with TestClient(create_app(Settings(_env_file=None, app_db_path=repo.path)), base_url="http://127.0.0.1") as client:
         assert repo.get_run(run.run_id).state == "interrupted"
-        assert client.get("/api/v1/health").json()["processing_state"] == "not_implemented"
+        assert client.get("/api/v1/health").json()["processing_state"] == "idle"
 
 
 def test_manual_creation_after_exclusion_preserves_automatic_block(repo, fixture):
