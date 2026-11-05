@@ -1,10 +1,12 @@
 # GPN Insight
 
-Внутренний пилот анализа продуктовой обратной связи. Реализованы каркас backend и **слой SQLite v2 участника 3**: версии источников, реестр материалов, нормализация/потребности, темы/связи, решения/история, review, ручные переопределения, записи запусков и завершённые import_log. Реальный HTTP-срез читает сохранённые темы/карточки/источники и сохраняет `new`/`needs_research`. Это ещё не сквозной анализ обращений.
+Внутренний пилот анализа продуктовой обратной связи. Реализованы каркас backend, **SQLite v3**, сохранение источников/тем/решений, управление запусками с одним worker и checkpoints, строгий текстовый replay и каркас record/verify-recordings. Это ещё не сквозной анализ обращений: нормализатор участника 1 и анализ участника 2 не подключены. Обычный POST /api/v1/runs честно возвращает 503 INTEGRATION_NOT_READY; тестовые компоненты не включаются в production API.
+
+Новый этап и границы интеграции: [docs/PIPELINE.md](docs/PIPELINE.md). Проверка полного инфраструктурного сценария без живых моделей: из backend/ `..\.venv\Scripts\python.exe -X utf8 -m scripts.check_pipeline` (на macOS `../.venv/bin/python -m scripts.check_pipeline`). Она использует только синтетические адаптеры tests и отдельную БД, проверяет настоящий рестарт и сохранность решений.
 
 Участнику 4: [контракты, JSON-примеры и пошаговая проверка из двух PowerShell-терминалов](docs/API_HANDOFF.md). Обычный запуск ниже не загружает фикстуру; на пустой базе GET /api/v1/topics возвращает `[]`.
 
-Контракт регистрации для участника 1, границы транзакций, миграция и список repository-методов описаны в [docs/STORAGE.md](docs/STORAGE.md). Перед первым init-db/запуском новой версии остановите старый сервер. Для v1 автоматически создаётся SQLite backup в соседнем backups/, затем выполняется атомарный перенос без сброса данных; повторный init-db безопасен.
+Контракт регистрации для участника 1, границы транзакций, миграция и список repository-методов описаны в [docs/STORAGE.md](docs/STORAGE.md). Перед первым init-db/запуском новой версии остановите старый сервер. Для v1/v2 автоматически создаётся SQLite backup в соседнем backups/, затем выполняется атомарный перенос до v3 без сброса данных; повторный init-db безопасен. Общий guard для будущей фиксации импорта — Repository.import_commit(), до размещения файлов и открытия DB-транзакции.
 
 Проверено на Windows, **Python 3.13.0**. Node.js/npm для backend не нужны. Прямые зависимости указаны в `backend/requirements.in`, все фактически установленные версии зафиксированы в `backend/requirements.txt`. Python 3.12 на этой машине не проверялся. `tzdata` нужна для `Europe/Moscow` на Windows.
 
@@ -136,6 +138,8 @@ Invoke-RestMethod "$baseUrl/topics/$topicId/decision" -Method Patch -ContentType
 | Метод и путь | Реализованный результат |
 |---|---|
 | `GET /api/v1/health` | Состояние сервера/SQLite отдельно от моделей |
+| `POST /api/v1/runs` | 202 с Run при подключённых компонентах; сейчас 503 INTEGRATION_NOT_READY, без создания фиктивного запуска |
+| `GET /api/v1/runs/{run_id}` | Сохранённое состояние, origins, errors и прогресс; неизвестный ID — 404 |
 | `GET /api/v1/topics` | Сохранённые карточки; фильтр `support_level=single\|repeated`, по умолчанию repeated; пустая база — `[]` |
 | `GET /api/v1/topics/{topic_id}` | Тема, программные счётчики, источники и история |
 | `GET /api/v1/sources/{source_id}` | Сохранённый источник, текущая версия, фрагменты/потребности; document может быть null |
@@ -164,7 +168,7 @@ $env:APP_DB_PATH = 'var/utf8-demo.db'
 
 ## Режим и модели
 
-`APP_MODEL_MODE=replay` — выбранная конфигурация, **не обещание работоспособного replay**. Сейчас health возвращает `processing_state=not_implemented`, три `REPLAY_NOT_IMPLEMENTED`, `replay_record_count=0`, `replay_origins=[]`. Карточка имеет `synthetic=true`, `data_origin=authored`, `analysis_mode=null`: это подготовленное состояние, не сохранённый ответ модели.
+`APP_MODEL_MODE=replay` — выбранная конфигурация, **не обещание готовности pipeline**. Строгий текстовый replay реализован: без APP_RECORDINGS_ROOT/APP_REPLAY_MODEL_ID/APP_REPLAY_NORMALIZATION_HASH он сообщает REPLAY_NOT_CONFIGURED, настроенный набор — REPLAY_READY только для точных сохранённых запросов. ASR/VL пока REPLAY_NOT_IMPLEMENTED. Health показывает idle/busy отдельно от pipeline_ready и integration_errors. Пока компоненты участников 1/2 не подключены, pipeline_ready=false. Старая seed-карточка имеет synthetic=true, data_origin=authored, analysis_mode=null и не становится модельным результатом после изменения режима.
 
 В `live` без адреса/ID будет `MODEL_NOT_CONFIGURED`. С заполненными адресом/ID — `MODEL_ADAPTER_NOT_IMPLEMENTED`, `checked_at=null`: доступность не проверялась, протокол неизвестен. Токены не попадают в health. Вызов заглушки gateway выбрасывает `GatewayUnavailable` с явным кодом; автоматического переключения режимов и фиктивных успешных ответов нет. Реальные внутренние модели, качество и скорость пока не проверены.
 
@@ -188,13 +192,15 @@ $env:APP_DB_PATH = 'var/utf8-demo.db'
 
 **Участник 1:** `TicketInput`, `MaterialInput`, `Fragment`, `NormalizedDocument`, `MaterialError`, `ImportIssue`, `ImportPreview/Result`, а также новые `DatasetRegistration` и `RegisteredMaterial`. После проверки/перемещения файлов вызвать `Repository.register_dataset`; он атомарно сохраняет только SQLite-записи и завершённый import_log. Общей транзакции с файлами нет. Маскирование, сигнатуры, лимиты, восстановление файлов, `imports_api.py` и реальные ASR/VL остаются участнику 1. Полный реестр для сверки uploads — `registered_materials()`, включая исторические версии. Подробный контракт и порядок очистки — в docs/STORAGE.md; `seed-demo` импорт не заменяет.
 
-**Участник 2:** общие схемы и текстовый gateway сохранены. Доступны `catalog_snapshot` с ревизией, `save_source_analysis`/`save_needs`, `create_topic`/`attach_needs`, хранилище review, ручных переопределений и история паспортов. Правила группировки и разрешения review не реализованы: участник 2 объединит нужные repository-вызовы через transaction. Формирование стабильных ID и оркестрация полного анализа остаются интеграцией pipeline; синтетическая фикстура использует UUIDv5. Алгоритм source hash уже задан register_dataset и не включает серверный путь/время импорта. Контракты и ограничения повторного анализа — в docs/STORAGE.md.
+**Участник 2:** реализация Analysis.extract_needs/assign_topic с ExtractionResult/AssignmentResult и ProcessingProfile — граница в docs/PIPELINE.md. Pipeline уже обеспечивает два прохода, стабильные fragment/need/topic IDs и транзакционное сохранение назначений. Полный снимок каталога, версии и provenance проверяются. Точный TextGateway — app.gateways.text_gateway(settings); он также доступен как app.state.text_gateway. Промпты, поиск по порциям, группировка и review-политика остаются участнику 2. RecordingGateway позволяет захватить ответы реального gateway и опубликовать набор после успешного сценария; live-адаптер ещё не подключён.
 
-**Участник 4:** [docs/API_HANDOFF.md](docs/API_HANDOFF.md), `/openapi.json`, `TopicDetail`, `SourceDetail`, `DecisionUpdate`, `ErrorResponse` и `data/contracts/{decision,decision-new,http-examples}.json`. Реализованы чтение и решения new/needs_research. SourceDetail имеет source_version/content_hash/requires_analysis; document может быть null до нормализации. TopicDetail.pending_source_ids показывает источники, ожидающие нового анализа. Показывать происхождение данных и неполное покрытие, подтверждать сохранение только после HTTP 200, при 409 перечитать карточку. Worker и остальные HTTP-операции ещё не реализованы.
+**Участник 4:** [docs/API_HANDOFF.md](docs/API_HANDOFF.md), [docs/PIPELINE.md](docs/PIPELINE.md), `/openapi.json`, RunRequest/Run и data/contracts/run.json. POST /runs возвращает 202 с Run при готовых компонентах, GET /runs/{id} — сохранённый прогресс; сейчас обычный POST даёт 503 INTEGRATION_NOT_READY. Показывать state/errors/origins отдельно от coverage; повтор активного клика использует прежний run_id. Чтение карточек и решения new/needs_research сохранены. Не показывать неподключённый анализ рабочим live-путём.
 
-Синхронные gateways рассчитаны на будущий последовательный pipeline в серверном worker. Сейчас есть хранилище запусков и восстановление их записей в interrupted при старте, но нет worker, checkpoint, настоящего replay и frontend. Репозиторий хранит решения всех согласованных бизнес-статусов кроме merged; HTTP сохраняет new/needs_research. Полные пользовательские операции merge/exclude/review, импорт и обработка остаются последующей интеграцией; политика review и группировка принадлежат участнику 2.
+Последовательный worker, checkpoints и строгий текстовый replay реализованы. Полная обработка без компонентов участников 1/2, live, медиа, полный сценарий record/evaluate и frontend остаются интеграцией. Репозиторий хранит бизнес-решения кроме merged; HTTP сохраняет new/needs_research. Полные пользовательские операции merge/exclude/review не добавлялись.
 
 ## Фактически выполненные проверки
+
+Этап pipeline/replay (2026-11-05): **176 passed**, 16 общих/7 HTTP-примеров валидны, export-schemas — 27 типов, pip check успешен. Проверены две стороны import/run guard, активный клик, порядок двух проходов, rollback данных/checkpoint, отказ неизвестного replay и неизменность опубликованного набора. Настоящий проверочный Uvicorn прошёл аварийный рестарт между проходами и reuse 4/6 шагов без потери решения. Копия пользовательской v2 прошла v3/repeat с прежними данными и integrity/FK; рабочая БД не менялась. Полного live-пути пока нет; только tests-адаптеры в scripts.check_pipeline.
 
 Минимальный HTTP-этап (2026-11-04): **62 passed**, 16 общих и 7 HTTP-примеров валидны, pip check успешен. Проверены пустая база без фикстуры, источник до нормализации, new/needs_research, обязательные поля, 422/409 и атомарный откат при ошибке истории. Настоящий Windows PowerShell/Uvicorn подтвердил оба решения и кириллицу после рестартов, count=4; тестовый сервер остановлен. Результаты ниже относятся к предыдущим этапам.
 

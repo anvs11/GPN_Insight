@@ -10,25 +10,33 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .api import router
 from .config import Settings
 from .db import initialize
-from .gateways import UnavailableGateways
+from .gateways import UnavailableGateways, text_gateway
+from .pipeline import PipelineAdapters
 from .repositories import Repository, RepositoryError
+from .runs import RunService
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineAdapters | None = None) -> FastAPI:
     settings = settings or Settings()
     repository = Repository(settings.repo_path(settings.app_db_path))
+    runs = RunService(repository, settings.app_model_mode, pipeline_adapters)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         initialize(repository.path)
         repository.interrupt_active_runs()
-        yield
+        try:
+            yield
+        finally:
+            runs.close()
 
     # Swagger/ReDoc по умолчанию загружают JS с CDN. Оставляем локальный OpenAPI JSON.
     app = FastAPI(title="GPN Insight — основа backend", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.settings = settings
     app.state.repository = repository
     app.state.gateways = UnavailableGateways(settings)
+    app.state.text_gateway = text_gateway(settings)
+    app.state.run_service = runs
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]"])
 
     @app.middleware("http")

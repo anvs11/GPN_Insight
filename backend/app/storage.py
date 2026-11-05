@@ -10,19 +10,14 @@ from typing import Iterator
 from uuid import uuid4
 
 from .db import connection
+from .coordination import gate_for
+from .errors import RepositoryError
+from .run_storage import RunStorage
 from .schemas import (
     DatasetRegistration, ExtractedNeed, Fragment, ImportCounts, ImportLogEntry,
     ImportResult, ManualOverride, NormalizedDocument, RegisteredMaterial,
     ReviewItem, Run, SourceDetail, TicketInput, Topic,
 )
-
-
-class RepositoryError(Exception):
-    def __init__(self, code: str, message: str, status_code: int = 409):
-        self.code = code
-        self.message = message
-        self.status_code = status_code
-        super().__init__(message)
 
 
 def digest(value) -> str:
@@ -45,7 +40,7 @@ def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class StorageRepository:
+class StorageRepository(RunStorage):
     def __init__(self, path: Path, *, _db: sqlite3.Connection | None = None):
         self.path = path
         self._db = _db
@@ -142,10 +137,10 @@ class StorageRepository:
                 db.row_factory = sqlite3.Row
                 db.execute("PRAGMA query_only = ON")
                 db.execute("BEGIN")
-                if [r[0] for r in db.execute("SELECT version FROM schema_version")] != [2]:
+                if [r[0] for r in db.execute("SELECT version FROM schema_version")] not in ([2], [3]):
                     raise RepositoryError(
                         "PREVIEW_SCHEMA_UNSUPPORTED",
-                        "Для проверки нужна SQLite v2. Обновите базу отдельно по README.",
+                        "Для проверки нужна SQLite v2/v3. Обновите базу отдельно по README.",
                         503,
                     )
                 source_query = (
@@ -182,6 +177,18 @@ class StorageRepository:
         return counts
 
     def register_dataset(self, batch: DatasetRegistration, *, registration_id: str | None = None) -> ImportResult:
+        with self.import_commit():
+            return self._register_dataset(batch, registration_id=registration_id)
+
+    @contextmanager
+    def import_commit(self):
+        """Будущий HTTP-импорт удерживает guard также во время размещения файлов."""
+        with gate_for(self.path).importing(wait=self._db is None):
+            if self.active_run() is not None:
+                raise RepositoryError("RUN_ACTIVE", "Дождитесь завершения активного запуска перед импортом.")
+            yield
+
+    def _register_dataset(self, batch: DatasetRegistration, *, registration_id: str | None = None) -> ImportResult:
         """Только SQLite. Файлы уже проверены/перемещены участником 1 до вызова."""
         batch = DatasetRegistration.model_validate(batch.model_dump())
         request_hash = digest(batch.model_dump(mode="json"))
@@ -379,6 +386,10 @@ class StorageRepository:
             return [ManualOverride.model_validate_json(r["body_json"]).model_copy(update={"requires_recheck": bool(r["requires_recheck"])}) for r in db.execute("SELECT * FROM manual_overrides WHERE product_id=? AND source_id=? ORDER BY rowid", (product_id, source_id))]
 
     def create_run(self, run: Run) -> Run:
+        with gate_for(self.path).start_run():
+            return self._create_run(run)
+
+    def _create_run(self, run: Run) -> Run:
         run = Run.model_validate(run.model_dump())
         if run.state != "queued" or run.started_at or run.finished_at:
             raise RepositoryError("INVALID_RUN_STATE", "Новый запуск должен иметь состояние queued без начала/окончания.", 422)
@@ -422,6 +433,8 @@ class StorageRepository:
                     raise RepositoryError("INVALID_RUN_STATE", "Состояние завершения не соответствует покрытию или ошибкам.", 422)
             if run.successful_materials < previous.successful_materials or run.failed_materials < previous.failed_materials:
                 raise RepositoryError("RUN_PROGRESS_CONFLICT", "Прогресс запуска нельзя уменьшить.")
+            if run.completed_steps < previous.completed_steps or run.reused_steps < previous.reused_steps or not set(previous.origins).issubset(run.origins):
+                raise RepositoryError("RUN_PROGRESS_CONFLICT", "Контрольные точки и происхождение запуска нельзя уменьшить.")
             tx._db.execute("UPDATE run_records SET state=?,body_json=? WHERE run_id=?", (run.state, run.model_dump_json(), run.run_id))
 
     def interrupt_active_runs(self) -> int:

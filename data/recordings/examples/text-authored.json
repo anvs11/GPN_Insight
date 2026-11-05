@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "purpose": "replay_contract_only_not_model_quality",
+  "version": "text-contract-v1",
+  "entries": [
+    {
+      "schema_name": "ExtractedNeeds",
+      "model_id": "synthetic-contract-no-live-model",
+      "normalization_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "request": {
+        "operation": "extract_needs",
+        "prompt": "Синтетический образец HTTP-контракта ответа. Это не промпт анализа и не результат модели.",
+        "prompt_version": "contract-only-v1",
+        "data": {"synthetic": true, "text": "Синтетическое сообщение без выраженной потребности."},
+        "parameters": {"temperature": 0}
+      },
+      "response": {"needs": []}
+    }
+  ]
+}

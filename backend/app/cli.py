@@ -11,6 +11,8 @@ from .config import REPO_ROOT, Settings
 from .db import initialize
 from .demo import load_fixture
 from .repositories import Repository, RepositoryError
+from .replay import SCHEMAS, make_record, publish_records, verify_recordings
+from .gateways import GatewayUnavailable, TextRequest
 
 EXAMPLE_SCHEMAS = {
     cls.__name__: cls for cls in (
@@ -25,6 +27,11 @@ EXAMPLE_SCHEMAS = {
 STORAGE_SCHEMAS = {cls.__name__: cls for cls in (
     schemas.DatasetRegistration, schemas.RegisteredMaterial, schemas.ImportLogEntry,
     schemas.ManualOverride, schemas.TopicChangeEvent, schemas.CatalogSnapshot,
+)}
+
+PIPELINE_SCHEMAS = {cls.__name__: cls for cls in (
+    schemas.RunRequest, schemas.ProcessingProfile, schemas.ExtractedNeeds,
+    schemas.ExtractionResult, schemas.AssignmentResult,
 )}
 
 
@@ -80,21 +87,48 @@ def validate_http_examples(path: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="GPN Insight — команды backend")
-    parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas"])
+    parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas", "record", "verify-recordings"])
     parser.add_argument("--fixture", type=Path, default=REPO_ROOT / "data/contracts/demo_state.json")
     parser.add_argument("--examples", type=Path, default=REPO_ROOT / "data/contracts/examples.json")
     parser.add_argument("--http-examples", type=Path, default=REPO_ROOT / "data/contracts/http-examples.json")
     parser.add_argument("--output", type=Path, default=REPO_ROOT / "var/contracts/schemas.json")
+    parser.add_argument("--recordings", type=Path, default=REPO_ROOT / "var/recordings/text")
+    parser.add_argument("--authored-input", type=Path)
+    parser.add_argument("--requests", type=Path)
     args = parser.parse_args()
     try:
-        if args.command == "validate-examples":
+        if args.command == "verify-recordings":
+            queries = None
+            if args.requests:
+                if args.requests.stat().st_size > 10 * 1024 * 1024:
+                    raise ValueError("Request file exceeds limit")
+                queries = json.loads(args.requests.read_text(encoding="utf-8"))["entries"]
+                if not isinstance(queries, list) or len(queries) > 10000:
+                    raise ValueError("Request count exceeds limit")
+            report = verify_recordings(args.recordings, queries)
+            print(json.dumps(report, ensure_ascii=False))
+        elif args.command == "record":
+            if args.authored_input is None:
+                raise GatewayUnavailable("LIVE_RECORDING_NOT_CONNECTED", "Для live record нужен реальный TextGateway; сейчас доступен только явный authored-вход.")
+            target = args.recordings.resolve()
+            if not any(target.is_relative_to((REPO_ROOT / folder).resolve()) for folder in ("var", "data/recordings")):
+                raise ValueError("Record output must be in var or data/recordings")
+            if args.authored_input.stat().st_size > 10 * 1024 * 1024:
+                raise ValueError("Authored input exceeds 10 MiB")
+            bundle = json.loads(args.authored_input.read_text(encoding="utf-8"))
+            if bundle.get("synthetic") is not True or not 0 < len(bundle["entries"]) <= 100:
+                raise ValueError("Authored input must be a bounded synthetic bundle")
+            records = [make_record(TextRequest.model_validate(e["request"]), SCHEMAS[e["schema_name"]], e["response"],
+                model_id=e["model_id"], normalization_hash=e["normalization_hash"], set_version=bundle["version"], origin="authored") for e in bundle["entries"]]
+            print(json.dumps(publish_records(target, records), ensure_ascii=False))
+        elif args.command == "validate-examples":
             count = validate_examples(args.examples)
             http_count = validate_http_examples(args.http_examples)
             fixture = load_fixture(args.fixture)
             print(f"Примеры: {count}; HTTP-примеры: {http_count}; источников тестовой карточки: {len(fixture.sources)}; synthetic=true, origin=authored. База не изменена.")
         elif args.command == "export-schemas":
             args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
+            args.output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
             print("JSON Schema контрактов сохранены.")
         else:
             settings = Settings()
@@ -106,10 +140,11 @@ def main() -> int:
                 inserted = Repository(path).seed_demo(load_fixture(args.fixture))
                 print("Тестовая карточка добавлена; synthetic=true, origin=authored. Анализ моделей не выполнялся." if inserted else "Точное повторение: unchanged. Решения и история сохранены.")
         return 0
-    except (ValidationError, ValueError, KeyError, TypeError, AttributeError, OSError, RepositoryError, sqlite3.Error, RuntimeError) as exc:
+    except (ValidationError, ValueError, KeyError, TypeError, AttributeError, OSError, RepositoryError, GatewayUnavailable, sqlite3.Error, RuntimeError) as exc:
         # Не выводим ValidationError целиком: он может включать входные данные.
-        code = exc.code if isinstance(exc, RepositoryError) else "COMMAND_FAILED"
-        print(f"{code}: команда не завершена. Проверьте файл, контракт и доступ к базе.", file=sys.stderr)
+        code = exc.code if isinstance(exc, (RepositoryError, GatewayUnavailable)) else "COMMAND_FAILED"
+        message = str(exc) if isinstance(exc, GatewayUnavailable) else "Команда не завершена. Проверьте файл, контракт и доступ к базе."
+        print(f"{code}: {message}", file=sys.stderr)
         return 1
 
 

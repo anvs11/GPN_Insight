@@ -132,3 +132,16 @@ def migrate_v1(db: sqlite3.Connection) -> None:
     if db.execute("PRAGMA foreign_key_check").fetchone():
         raise RuntimeError("Перенос нарушил связи; миграция отменена")
     db.execute("UPDATE schema_version SET version=2 WHERE version=1")
+
+
+def migrate_v2(db: sqlite3.Connection) -> None:
+    execute_statements(db, """
+    CREATE TABLE run_inputs (
+      run_id TEXT PRIMARY KEY REFERENCES run_records(run_id), body_json TEXT NOT NULL
+    );
+    CREATE TABLE stage_checkpoints (
+      checkpoint_key TEXT PRIMARY KEY, stage TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES run_records(run_id),
+      body_json TEXT NOT NULL
+    );
+    UPDATE schema_version SET version=3 WHERE version=2;
+    """)

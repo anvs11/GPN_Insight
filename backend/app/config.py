@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     app_data_root: Path = Path("data")
     app_upload_root: Path = Path("var/uploads")
     app_tmp_root: Path = Path("var/tmp")
+    app_recordings_root: Path = Path("data/recordings/text")
+    app_replay_model_id: str = ""
+    app_replay_normalization_hash: str = ""
     text_model_base_url: str = ""
     text_model_id: str = ""
     text_model_token: SecretStr = SecretStr("")

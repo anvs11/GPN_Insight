@@ -22,7 +22,7 @@
 
 `stats.ticket_count` рассчитан по уникальным активным source_id. `requester_count=null` означает отсутствие данных, его нельзя заменять нулём. `SourceDetail.document` может быть `null` до нормализации, `needs=[]` вместе с `requires_analysis=true` не означает «потребностей нет». Учитывайте `document.errors` и `TopicDetail.pending_source_ids`. Показывайте `synthetic`, `data_origin`, `model_mode`, `analysis_mode`; `replay` при `analysis_mode=null` и `authored` не является результатом модели. Текст и цитаты выводите как текст, без HTML из данных.
 
-В этом этапе нет периодов и остальных фильтров списка: неизвестные параметры возвращают `422 UNSUPPORTED_FILTER`. Полный набор фильтров ExecPlan остаётся следующей задачей. Импорт, run, review, merge, файлы медиа и полный жизненный цикл через HTTP здесь не реализованы. `/` возвращает 404 до появления frontend.
+В списке тем нет периодов и остальных фильтров: неизвестные параметры возвращают `422 UNSUPPORTED_FILTER`. Полный набор фильтров ExecPlan остаётся следующей задачей. POST/GET runs и worker теперь реализованы как инфраструктура — см. [PIPELINE.md](PIPELINE.md); без компонентов 1/2 POST возвращает 503 INTEGRATION_NOT_READY. Импорт, review, merge, файлы медиа и полный жизненный цикл через HTTP ещё не подключены. `/` возвращает 404 до появления frontend.
 
 ## JSON-примеры
 
@@ -47,7 +47,7 @@ Set-Location backend
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-Ожидается: `62 passed` и известное предупреждение Starlette/AnyIO; 16 общих и 7 HTTP-примеров; `No broken requirements found`; SQLite v2 готова; Uvicorn слушает 127.0.0.1:8000. В health модели честно возвращают `REPLAY_NOT_IMPLEMENTED` — это ожидаемое ограничение текущей сборки.
+Ожидается: `176 passed` и известное предупреждение Starlette/AnyIO; 16 общих и 7 HTTP-примеров; `No broken requirements found`; SQLite v3 готова; Uvicorn слушает 127.0.0.1:8000. Без дополнительных настроек текстовый replay сообщает REPLAY_NOT_CONFIGURED, ASR/VL — REPLAY_NOT_IMPLEMENTED, pipeline_ready=false: интеграции участников 1/2 ещё нет.
 
 ## Терминал 2: пустая база
 

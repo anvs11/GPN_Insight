@@ -82,7 +82,33 @@ def model_health(settings: Settings) -> Health:
             code=code,
             message=message,
         )
-    return Health(model_mode=settings.app_model_mode, available_models=models)
+    health = Health(model_mode=settings.app_model_mode, available_models=models)
+    if settings.app_model_mode == "replay":
+        from .replay import ReplayGateway
+        if not settings.app_replay_model_id or not settings.app_replay_normalization_hash:
+            models["text"] = ModelAvailability(status="not_configured", configured=False, code="REPLAY_NOT_CONFIGURED",
+                message="Строгий текстовый replay реализован, но набор, model_id и normalization_hash не настроены.")
+        else:
+            try:
+                gateway = ReplayGateway(settings.repo_path(settings.app_recordings_root), settings.app_replay_model_id, settings.app_replay_normalization_hash)
+                records = [r for r in gateway.records().values() if r.metadata.model_id == settings.app_replay_model_id and r.metadata.normalization_hash == settings.app_replay_normalization_hash]
+                models["text"] = ModelAvailability(status="available" if records else "unavailable", configured=True,
+                    code="REPLAY_READY" if records else "REPLAY_RECORD_MISSING",
+                    message="Доступны только точные сохранённые текстовые запросы; это не проверка живой модели.")
+                health.replay_record_count = len(records)
+                health.replay_origins = sorted({r.metadata.origin for r in records})
+            except GatewayUnavailable as exc:
+                models["text"] = ModelAvailability(status="unavailable", configured=True, code=exc.code,
+                    message="Набор replay не прошёл проверку. Проверьте конфигурацию; live не вызывается.")
+        health.available_models = models
+    return health
+
+
+def text_gateway(settings: Settings) -> TextGateway:
+    if settings.app_model_mode == "replay" and settings.app_replay_model_id and settings.app_replay_normalization_hash:
+        from .replay import ReplayGateway
+        return ReplayGateway(settings.repo_path(settings.app_recordings_root), settings.app_replay_model_id, settings.app_replay_normalization_hash)
+    return UnavailableGateways(settings)
 
 
 class UnavailableGateways:
@@ -93,6 +119,8 @@ class UnavailableGateways:
 
     def _fail(self, kind: str) -> NoReturn:
         state = self.health.available_models[kind]
+        if state.status == "available":
+            raise GatewayUnavailable("GATEWAY_NOT_BOUND", "Этот интерфейс не подключён. Используйте настроенный серверный TextGateway.")
         raise GatewayUnavailable(state.code, state.message)
 
     def generate(self, request: TextRequest, response_schema: type[ResponseT]) -> GatewayResult[ResponseT]:

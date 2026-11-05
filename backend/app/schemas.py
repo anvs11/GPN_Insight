@@ -400,9 +400,16 @@ class Run(Contract):
     created_at: AwareDatetime
     started_at: AwareDatetime | None = None
     finished_at: AwareDatetime | None = None
+    origins: list[Origin] = Field(default_factory=list)
+    completed_steps: Annotated[int, Field(ge=0)] = 0
+    reused_steps: Annotated[int, Field(ge=0)] = 0
+    failure_code: Text | None = None
+    failure_message: Text | None = None
 
     @model_validator(mode="after")
     def coverage_from_counts(self) -> Self:
+        if (self.failure_code is None) != (self.failure_message is None):
+            raise ValueError("Общая ошибка запуска требует кода и сообщения")
         if self.successful_materials + self.failed_materials > self.total_materials:
             raise ValueError("Обработанных материалов больше, чем всего материалов")
         expected = self.successful_materials / self.total_materials if self.total_materials else None
@@ -430,6 +437,8 @@ class Health(Contract):
     available_models: dict[Literal["text", "asr", "vision"], ModelAvailability]
     replay_origins: list[Origin] = Field(default_factory=list)
     replay_record_count: Annotated[int, Field(ge=0)] = 0
+    pipeline_ready: bool = False
+    integration_errors: list[str] = Field(default_factory=list)
 
 
 class ErrorResponse(Contract):
@@ -527,3 +536,51 @@ class CatalogSnapshot(Contract):
     product_id: Identifier
     catalog_revision: Annotated[int, Field(ge=0)]
     topics: list[Topic]
+
+
+class RunRequest(Contract):
+    product_id: Literal["webneft"] = "webneft"
+    date_from: date | None = None
+    date_to: date | None = None
+
+    @model_validator(mode="after")
+    def period(self) -> Self:
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("Начало периода позже его конца")
+        return self
+
+
+class ProcessingProfile(Contract):
+    model_id: Text
+    normalization_version: Text
+    prompt_hashes: dict[str, Sha256]
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    recording_set_version: Text
+
+    @model_validator(mode="after")
+    def required_prompt_hashes(self) -> Self:
+        if not {"extract_needs", "assign_topic"}.issubset(self.prompt_hashes):
+            raise ValueError("Нужны хеши содержимого промптов извлечения и сопоставления")
+        return self
+
+
+class ExtractedNeeds(Contract):
+    """Текстовый ответ извлечения; служебные metadata не принимает от модели."""
+    needs: list[ExtractedNeed]
+
+
+class ExtractionResult(Contract):
+    needs: list[ExtractedNeed]
+    metadata: list[RecordingMeta]
+
+
+class AssignmentResult(Contract):
+    assignment: TopicAssignment
+    new_topic: Topic | None = None
+    metadata: list[RecordingMeta]
+
+    @model_validator(mode="after")
+    def new_topic_payload(self) -> Self:
+        if (self.assignment.decision == "new") != (self.new_topic is not None):
+            raise ValueError("Новая тема нужна только для назначения new")
+        return self

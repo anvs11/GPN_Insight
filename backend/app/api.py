@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request
 from .db import connection
 from .gateways import model_health
 from .repositories import RepositoryError
-from .schemas import DecisionUpdate, ErrorResponse, Health, SourceDetail, TopicDetail
+from .schemas import DecisionUpdate, ErrorResponse, Health, Run, RunRequest, SourceDetail, TopicDetail
 
 router = APIRouter(prefix="/api/v1", responses={
     code: {"model": ErrorResponse} for code in (403, 404, 409, 422, 501, 503)
@@ -16,7 +16,22 @@ router = APIRouter(prefix="/api/v1", responses={
 def health(request: Request) -> Health:
     with connection(request.app.state.repository.path) as db:
         db.execute("SELECT version FROM schema_version").fetchone()
-    return model_health(request.app.state.settings)
+    result = model_health(request.app.state.settings)
+    service = request.app.state.run_service
+    result.processing_state = "busy" if service.repo.active_run() else "idle"
+    result.pipeline_ready = service.adapters is not None
+    result.integration_errors = [] if result.pipeline_ready else ["NORMALIZER_NOT_CONNECTED", "ANALYSIS_NOT_CONNECTED"]
+    return result
+
+
+@router.post("/runs", response_model=Run, status_code=202)
+def start_run(body: RunRequest, request: Request) -> Run:
+    return request.app.state.run_service.start(body)
+
+
+@router.get("/runs/{run_id}", response_model=Run)
+def get_run(run_id: str, request: Request) -> Run:
+    return request.app.state.repository.get_run(run_id)
 
 
 @router.get("/topics", response_model=list[TopicDetail])
