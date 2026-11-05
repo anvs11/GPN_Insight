@@ -1,0 +1,49 @@
+.processing-panel {
+  margin: 24px;
+  padding: 28px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.processing-panel p { margin: 10px 0; }
+.processing-panel h3 { color: var(--text-h); margin: 0 0 10px; font-size: 20px; }
+.processing-panel h4 { margin: 4px 0; }
+.processing-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.processing-panel .processing-eyebrow { font-size: 13px; margin: 0 0 6px; }
+.processing-panel button, .processing-panel input {
+  box-sizing: border-box; min-height: 44px; font: inherit; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; background: var(--bg); color: var(--text-h);
+}
+.processing-panel button { cursor: pointer; font-size: 15px; font-weight: 600; }
+.processing-panel button:hover:not(:disabled) { border-color: var(--accent); }
+.processing-panel button:disabled { opacity: .5; cursor: not-allowed; }
+.processing-panel :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.processing-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.processing-facts > div { padding: 16px; border-radius: 10px; background: var(--code-bg); }
+.processing-facts span, .processing-facts strong, .processing-facts small { display: block; }
+.processing-facts strong { color: var(--text-h); font-size: 22px; margin: 4px 0; }
+.processing-panel small { font-size: 13px; }
+.processing-warning, .processing-error { padding: 16px 20px; border: 1px solid #a76c28; border-left-width: 4px; border-radius: 8px; margin: 16px 0; }
+.processing-error { border-color: #c44747; }
+.processing-warning ul, .processing-error ul { padding-left: 20px; }
+.processing-warning li, .processing-error li { margin: 10px 0; }
+.processing-warning small { display: block; }
+.processing-ready { color: var(--text-h); }
+.processing-models { padding: 16px 0; }
+.processing-models summary { cursor: pointer; color: var(--text-h); }
+.processing-models > div { margin-top: 16px; padding-left: 16px; border-left: 2px solid var(--border); }
+.processing-form, .processing-run { padding-top: 24px; margin-top: 24px; border-top: 1px solid var(--border); }
+.processing-fields { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin-top: 16px; }
+.processing-fields label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.processing-fields input { width: 100%; }
+.processing-wide { flex: 1; min-width: 180px; }
+.processing-counters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.processing-counters dt { font-size: 14px; }
+.processing-counters dd { margin: 4px 0 0; font-size: 22px; color: var(--text-h); }
+@media (max-width: 700px) {
+  .processing-panel { margin: 14px; padding: 18px; }
+  .processing-facts, .processing-counters { grid-template-columns: 1fr; }
+  .processing-fields > * { width: 100%; }
+}
