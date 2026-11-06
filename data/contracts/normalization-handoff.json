@@ -1,0 +1,192 @@
+{
+  "fixture_id": "synthetic-normalization-handoff-v1",
+  "synthetic": true,
+  "origin": "authored",
+  "status": "implemented-current-analysis-not-default-connected",
+  "normalization_recipe": {
+    "version": "text-pii-v1-proposal",
+    "implementation": "text-normalizer-v1",
+    "masking": {
+      "version": "masking-v2",
+      "email_pattern": "(?<![\\w.!#$%&'*+/=?^`{|}~@-])[\\w.!#$%&'*+/=?^`{|}~+-]+@(?:[\\w-]+\\.)*[\\w-]+(?![\\w@-])",
+      "phone_pattern": "(?<![\\w+])(?:(?:\\+7|[78])[ \\t\\u00a0\\u202f.\\-\\u2010-\\u2014]{0,3}\\(?[0-9]{3}\\)?|\\([3489][0-9]{2}\\)|[3489][0-9]{2})[ \\t\\u00a0\\u202f.\\-\\u2010-\\u2014]{0,3}[0-9]{3}[ \\t\\u00a0\\u202f.\\-\\u2010-\\u2014]{0,3}[0-9]{2}[ \\t\\u00a0\\u202f.\\-\\u2010-\\u2014]{0,3}[0-9]{2}(?!\\w)",
+      "inn_patterns": [
+        "(?<!\\w)ИНН[ \\t\\r\\n\\u00a0\\u202f]{0,16}[:№#=(\\-—–]?[ \\t\\r\\n\\u00a0\\u202f]{0,16}(?P<number>[0-9]{12}|[0-9]{10})(?!\\w)",
+        "(?<!\\w)(?P<number>[0-9]{12}|[0-9]{10})[ \\t\\u00a0\\u202f]{0,16}[(:—–,;-]?[ \\t\\u00a0\\u202f]{0,16}ИНН(?!\\w)"
+      ],
+      "inn_ignore_case": true,
+      "financial_pattern": "(?<![\\w+])[0-9]+(?:[ \\t\\u00a0\\u202f\\-\\u2010-\\u2014]{1,3}[0-9]+)*(?!\\w)",
+      "digits": "ASCII",
+      "card_length": [
+        13,
+        19
+      ],
+      "card_checksum": "Luhn-mod10-right-to-left-v1",
+      "special_card_groups": [
+        [
+          4,
+          3,
+          3,
+          3
+        ],
+        [
+          4,
+          6,
+          4
+        ],
+        [
+          4,
+          6,
+          5
+        ]
+      ],
+      "default_card_groups": "four-digit groups with final group of 1..4 digits; or contiguous",
+      "inn_lengths": [
+        10,
+        12
+      ],
+      "inn_checksum": "not-validated",
+      "phone_validation": "format-only",
+      "account_length": 20,
+      "account_groups": [
+        [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        [
+          5,
+          3,
+          1,
+          4,
+          7
+        ],
+        [
+          5,
+          5,
+          5,
+          5
+        ]
+      ],
+      "account_checksum": "not-validated",
+      "priority": [
+        "email",
+        "labelled-inn",
+        "account",
+        "card",
+        "phone"
+      ],
+      "financial_scan": "whole-digit-groups; max-five-groups/20-digits; maximal-digit-coverage; ties-account-digits-fewer-spans-earlier-longer-v1",
+      "overlap_policy": "non-overlapping-priority-valid-before-protected-then-length; second-financial-pass-v1",
+      "invalid_card_policy": "preserve-without-phone-submatches",
+      "markers": {
+        "phone": "[ТЕЛЕФОН]",
+        "email": "[EMAIL]",
+        "card": "[КАРТА]",
+        "inn": "[ИНН]",
+        "account": "[СЧЁТ]"
+      },
+      "license_plates": "preserve",
+      "names_and_addresses": "not-detected"
+    },
+    "text_encoding": "UTF-8",
+    "max_text_bytes": 1048576,
+    "whitespace_and_unicode": "preserve-except-masked-spans",
+    "fragments": "one-text-fragment; local-id=text-1",
+    "fragment_warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные.",
+    "empty_text": "one-empty-text-fragment",
+    "media": "reject-whole-ticket",
+    "source_identity": "ticket-product/source; pipeline-content_hash/source_version"
+  },
+  "normalization_hash": "731c60015a270661e72a5a1d17c8c07bcce9306582fdec43ec3d226889ecf63a",
+  "profile": {
+    "model_id": "synthetic-contract-only",
+    "normalization_version": "text-pii-v1-proposal",
+    "prompt_hashes": {
+      "extract_needs": "ee2f4c1b4ab5db1b91e2d154db479a17bcebfbb3ed086f43a359ece931a25608",
+      "assign_topic": "baa34ce6be92dd74dda254ab4165f28330446f4e7d09ebdaf77526ced75a6056"
+    },
+    "parameters": {
+      "normalization_hash": "731c60015a270661e72a5a1d17c8c07bcce9306582fdec43ec3d226889ecf63a",
+      "text_integration": {
+        "version": "u1-text-integration-v1",
+        "max_attempts": 2,
+        "retrieval_k": 20,
+        "p_max": 50,
+        "passport_batch_max_chars": 16000,
+        "max_assign_batches": 8
+      }
+    },
+    "recording_set_version": "normalization-current-authored-v1"
+  },
+  "ticket": {
+    "source_id": "SYNTHETIC-NORMALIZATION-HANDOFF-001",
+    "product_id": "webneft",
+    "created_at": "2026-11-06T12:00:00+03:00",
+    "text": "Синтетический пример. Свяжитесь: demo@example.invalid, +7 (000) 123-45-67. Карта 4111 1111 1111 1111; ИНН 1234567890; счёт 00000000000000000000. Машина А123ВС77. Тест Тестович, ул. Тестовая, 1.",
+    "requester_id": null,
+    "assets": []
+  },
+  "context": {
+    "content_hash": "5d6ea959f5db5f459e3b575549ed3b4e00487b447eaaff22f68eb8444e58e985",
+    "source_version": 3
+  },
+  "document_local": {
+    "product_id": "webneft",
+    "source_id": "SYNTHETIC-NORMALIZATION-HANDOFF-001",
+    "content_hash": "5d6ea959f5db5f459e3b575549ed3b4e00487b447eaaff22f68eb8444e58e985",
+    "version": 3,
+    "normalization_version": "text-pii-v1-proposal",
+    "fragments": [
+      {
+        "fragment_id": "text-1",
+        "asset_id": null,
+        "kind": "text",
+        "text": "Синтетический пример. Свяжитесь: [EMAIL], [ТЕЛЕФОН]. Карта [КАРТА]; ИНН [ИНН]; счёт [СЧЁТ]. Машина А123ВС77. Тест Тестович, ул. Тестовая, 1.",
+        "start_ms": null,
+        "end_ms": null,
+        "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+      }
+    ],
+    "errors": []
+  },
+  "document_pipeline": {
+    "product_id": "webneft",
+    "source_id": "SYNTHETIC-NORMALIZATION-HANDOFF-001",
+    "content_hash": "5d6ea959f5db5f459e3b575549ed3b4e00487b447eaaff22f68eb8444e58e985",
+    "version": 3,
+    "normalization_version": "text-pii-v1-proposal",
+    "fragments": [
+      {
+        "fragment_id": "7cb7f4ca-9aea-5c39-8828-d31412c78f71",
+        "asset_id": null,
+        "kind": "text",
+        "text": "Синтетический пример. Свяжитесь: [EMAIL], [ТЕЛЕФОН]. Карта [КАРТА]; ИНН [ИНН]; счёт [СЧЁТ]. Машина А123ВС77. Тест Тестович, ул. Тестовая, 1.",
+        "start_ms": null,
+        "end_ms": null,
+        "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+      }
+    ],
+    "errors": []
+  },
+  "extraction_response": {
+    "needs": [
+      {
+        "need_id": "local-need-1",
+        "source_id": "SYNTHETIC-NORMALIZATION-HANDOFF-001",
+        "fragment_id": "7cb7f4ca-9aea-5c39-8828-d31412c78f71",
+        "evidence_quote": "Свяжитесь: [EMAIL], [ТЕЛЕФОН].",
+        "scenario": "Связь по заявке",
+        "need_type": "operational_request",
+        "statement": "Связаться с заявителем",
+        "explicit_request": true,
+        "improvement_hypothesis": null,
+        "uncertainty_reason": null
+      }
+    ]
+  },
+  "note": "Prepared synthetic answer; no model call",
+  "integration_version": "u1-text-integration-v1"
+}

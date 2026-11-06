@@ -1,5 +1,7 @@
 # Запуски, checkpoints и строгий текстовый replay
 
+Адаптация U1 к PR #7 выполнена: app.ingestion.integration.build_text_profile/build_text_pipeline создают настоящий TextNormalizer и build_analysis/AnalysisService с проверкой границы входа/выхода/gateway. Это рекомендуемая целая сборка для create_app(..., pipeline_adapters=...), а не замена алгоритмов U2. Профиль учитывает реальные промпты/normalization_hash/parameters/лимиты, ошибка материала не вызывает gateway, цитаты/metadata проверяются до публикации. 369 тестов и реальный API/strict authored replay прошли; импорт/repeat/решение/delta/reopen и resume подтверждены. Детали — [TEXT_INTEGRATION.md](TEXT_INTEGRATION.md). Глобальный main без переданных компонентов остаётся 503; автоматического new/медиа/live нет.
+
 На этом этапе участник 3 реализовал инфраструктуру запуска. `RunService` использует один `ThreadPoolExecutor(max_workers=1)`. API читает состояния из SQLite, а pipeline вызывает переданные нормализатор и анализ. **Нормализатор участника 1, извлечение/группировка участника 2 и настоящий live TextGateway ещё не подключены.** Обычный сервер не подставляет тестовую реализацию: POST возвращает `503 INTEGRATION_NOT_READY`, run не создаётся. Синтетические компоненты находятся только в `backend/tests/pipeline_adapters.py`.
 
 Подтянутый U1-01 проверен отдельно: строгий текстовый preview, общий source_content_hash и чтение counts без записи продолжают работать. Фиксацию импорта и нормализацию за участника 1 этот этап не добавляет.

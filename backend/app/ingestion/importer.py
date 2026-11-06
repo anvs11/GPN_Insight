@@ -1,15 +1,17 @@
-"""Строгий текстовый manifest и preview без постоянных изменений."""
+"""Общая проверка текстового manifest, preview и атомарная регистрация."""
 
 import json
 import math
+import sqlite3
 from collections.abc import Collection
 from datetime import datetime
+from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 
 from ..config import Settings
 from ..repositories import Repository, RepositoryError
-from ..schemas import DatasetRegistration, ImportCounts, ImportIssue, ImportPreview, TicketInput
+from ..schemas import DatasetRegistration, ImportCounts, ImportIssue, ImportPreview, ImportResult, TicketInput
 
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_JSON_DEPTH = 32
@@ -162,28 +164,63 @@ def import_tickets(
     dry_run: bool = False,
     *,
     repository: Repository | None = None,
-) -> ImportPreview:
-    """Проверить весь текстовый набор. db/counts читаются только в mode=ro.
+    registration_id: str | None = None,
+) -> ImportPreview | ImportResult:
+    """Preview читает SQLite; фиксация повторяет проверку и использует общий guard.
 
-    repository задаётся сервером, а не полем manifest. Фиксация этим этапом не поддержана.
+    repository и UUID registration_id задаются сервером, не полями manifest.
+    Для фиксации нужен обычный Repository без уже открытой внешней транзакции.
     """
-    if dry_run is not True:
-        return _invalid(ImportIssue(code="IMPORT_NOT_IMPLEMENTED", message="Фиксация импорта ещё не подключена. Используйте dry_run=True."))
+    if type(dry_run) is not bool:
+        raise RepositoryError("IMPORT_MODE_INVALID", "Параметр dry_run должен быть true или false.", 422)
     if assets:
-        return _invalid(ImportIssue(code="MEDIA_NOT_SUPPORTED", message="Переданные файлы пока не поддержаны. Для текстового preview не передавайте assets."))
+        issue = ImportIssue(code="MEDIA_NOT_SUPPORTED", message="Переданные файлы пока не поддержаны. Для текстового импорта не передавайте assets.")
+        if dry_run:
+            return _invalid(issue)
+        raise RepositoryError(issue.code, issue.message, 422)
     try:
         batch = _parse_manifest(manifest)
     except ManifestError as exc:
-        return _invalid(exc.issue)
+        if dry_run:
+            return _invalid(exc.issue)
+        raise RepositoryError(exc.issue.code, exc.issue.message, 422) from None
 
     if repository is None:
         settings = Settings()
         repository = Repository(settings.repo_path(settings.app_db_path))
+    if dry_run:
+        try:
+            counts = repository.preview_dataset_counts(batch)
+        except RepositoryError as exc:
+            return _invalid(ImportIssue(code=exc.code, message=exc.message), batch.dataset_id)
+        return ImportPreview(
+            dataset_id=batch.dataset_id, status="valid", counts=counts, can_commit=True,
+            warnings=["Счётчики предварительные. При будущем подтверждении набор проверяется заново."],
+        )
+
+    # Сервис не может подтвердить commit транзакции, которой управляет его вызывающий код.
+    if repository._db is not None:
+        raise RepositoryError(
+            "IMPORT_TRANSACTION_ACTIVE",
+            "Вызовите импорт с обычным Repository до открытия внешней DB-транзакции.",
+            409,
+        )
     try:
-        counts = repository.preview_dataset_counts(batch)
-    except RepositoryError as exc:
-        return _invalid(ImportIssue(code=exc.code, message=exc.message), batch.dataset_id)
-    return ImportPreview(
-        dataset_id=batch.dataset_id, status="valid", counts=counts, can_commit=True,
-        warnings=["Счётчики предварительные. При будущем подтверждении набор проверяется заново."],
-    )
+        request_uuid = str(uuid4()) if registration_id is None else str(UUID(registration_id))
+    except (ValueError, TypeError, AttributeError):
+        raise RepositoryError("REGISTRATION_ID_INVALID", "ID запроса регистрации должен быть серверным UUID.", 422) from None
+
+    # Не создаём/мигрируем отсутствующую БД при фиксации. Это лишь проверка состояния:
+    # её counts не используются как итог и снимок чтения закрыт до ожидания guard.
+    repository.preview_dataset_counts(batch)
+    try:
+        with repository.import_commit():
+            result = repository.register_dataset(batch, registration_id=request_uuid)
+    except sqlite3.Error:
+        raise RepositoryError(
+            "IMPORT_DATABASE_UNAVAILABLE",
+            "Импорт не подтверждён из-за ошибки базы. Проверьте её состояние и повторите тот же набор.",
+            503,
+        ) from None
+    # register_dataset завершил commit; выход из guard не является DB-транзакцией.
+    return result

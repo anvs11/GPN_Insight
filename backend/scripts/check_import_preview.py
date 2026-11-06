@@ -38,10 +38,10 @@ def main() -> None:
     observations = []
 
     def check(label: str, value: dict | bytes, *, target: Repository = repo,
-              counts: tuple[int, int, int] | None = None, code: str | None = None, dry_run: bool = True) -> None:
+              counts: tuple[int, int, int] | None = None, code: str | None = None) -> None:
         raw = value if isinstance(value, bytes) else json.dumps(value, ensure_ascii=False).encode("utf-8")
         before = file_snapshot(folder)
-        result = import_tickets(raw, dry_run=dry_run, repository=target)
+        result = import_tickets(raw, dry_run=True, repository=target)
         assert file_snapshot(folder) == before, f"{label}: preview changed files"
         assert repo.get_topic(card.topic.topic_id, "replay").model_dump(mode="json") == saved_card, f"{label}: decision changed"
         if code is None:
@@ -73,7 +73,6 @@ def main() -> None:
     missing = folder / "not-created" / "missing.db"
     check("missing-db", manifest, target=Repository(missing), code="PREVIEW_DATABASE_MISSING")
     assert not missing.parent.exists()
-    check("write-mode", manifest, dry_run=False, code="IMPORT_NOT_IMPLEMENTED")
 
     wal = folder / "wal.db"
     initialize(wal)

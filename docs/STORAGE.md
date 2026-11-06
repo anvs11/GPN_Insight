@@ -1,5 +1,7 @@
 # Слой хранения SQLite v3
 
+U1-адаптация (2026-11-06): текстовый dry_run=False теперь использует существующие register_dataset/import_commit без изменений SQL/схемы/guard. Импорт повторно валидирует manifest, сохраняет imported/synthetic, принимает counts после commit; preview read-only. TextNormalizer не пишет в хранилище, документ/checkpoint сохраняет pipeline. Повтор/rollback/conflicts/решения/reopen проверены; подробности — [TEXT_INTEGRATION.md](TEXT_INTEGRATION.md). Файловых операций и медиа пока нет.
+
 Это результат этапов участника 3: постоянные источники и их версии, метаданные материалов, нормализация, потребности, темы/связи, review, решения, ручные события, запуски и журнал завершённых регистраций. V3 добавляет run_inputs/stage_checkpoints, RunService и общий guard импорта; инфраструктура pipeline описана в docs/PIPELINE.md. Маскирование, нормализация, модели и группировка остаются владельцам 1/2.
 
 ## Что было и что добавлено
