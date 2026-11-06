@@ -9,7 +9,7 @@ import pytest
 from app.config import REPO_ROOT
 from app.db import initialize
 from app.ingestion.importer import MAX_JSON_DEPTH, MAX_MANIFEST_BYTES, import_tickets
-from app.repositories import Repository
+from app.repositories import Repository, RepositoryError
 from app.schemas import DatasetRegistration, MaterialInput, RegisteredMaterial, TicketInput
 from app.storage import source_content_hash
 
@@ -264,9 +264,12 @@ def test_origin_conflict_is_not_unchanged(repo, manifest):
     assert_invalid(preview(manifest, repo), "SOURCE_PROVENANCE_CONFLICT")
 
 
-def test_non_preview_mode_is_explicitly_unsupported(repo, manifest):
+@pytest.mark.parametrize("mode", [None, 0, 1, "false", "true"], ids=["none", "zero", "one", "false-string", "true-string"])
+def test_non_boolean_mode_does_not_write(repo, manifest, mode):
     before = snapshot(repo.path.parent)
-    assert_invalid(import_tickets(encode(manifest), repository=repo), "IMPORT_NOT_IMPLEMENTED")
+    with pytest.raises(RepositoryError) as exc:
+        import_tickets(encode(manifest), dry_run=mode, repository=repo)
+    assert exc.value.code == "IMPORT_MODE_INVALID"
     assert snapshot(repo.path.parent) == before
 
 

@@ -1,5 +1,9 @@
 # API тем и решений — передача участнику 4
 
+Готовность анализа (2026-11-06): обычный backend может подключиться по явному серверному профилю, но реальные настройки этой сессии пока отсутствуют. REPLAY_READY у модели не равен pipeline_ready: учитывать integration_errors, включая PROCESSING_PROFILE_*/REPLAY_PROFILE_CONFLICT. Без готовой сборки POST /runs сохраняет 503 INTEGRATION_NOT_READY, /imports независим. Mode/origins не скрывать: проверочная конфигурация явно replay/authored, не живая Qwen. Новых HTTP DTO нет; [RUNTIME_PROFILE.md](RUNTIME_PROFILE.md).
+
+Новая передача участнику 4 (2026-11-06): готовы POST /api/v1/imports?dry_run=true, POST /api/v1/imports и GET /api/v1/imports. Формат multipart, существующие ImportPreview/ImportResult/ImportLogEntry, русские 422/413/409, FormData-пример и ограничения — [IMPORT_HTTP.md](IMPORT_HTTP.md), синтетические ответы — data/contracts/import-http-examples.json. Форма остаётся вашей зоной: правила JSON/идентичности/counts выполняет backend. Неготовность анализа не блокирует импорт и не скрывается.
+
 Реализован минимальный HTTP-сценарий: список тем → карточка → источник → решение → повторное чтение после рестарта. Все ответы читаются из SQLite. Обычный запуск не создаёт примеры; пустая база возвращает `[]`. Тестовая процедура `app.cli seed-demo` отдельно загружает явно синтетическую фикстуру `data/contracts/demo_state.json`. Она не вызывает модели и не заменяет импорт участника 1.
 
 ## Контракт
