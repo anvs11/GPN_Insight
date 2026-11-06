@@ -10,9 +10,10 @@ from uuid import UUID, uuid4, uuid5
 from pydantic import ValidationError
 
 from .gateways import GatewayResult, GatewayUnavailable, TextGateway, TextRequest
-from .schemas import BatchAssignment, Contract, ExtractedNeeds, RecordingMeta, Sha256, Text
+from .schemas import BatchAssignment, Contract, ExtractedNeeds, ProposedTopic, RecordingMeta, Sha256, Text
 
-SCHEMAS = {s.__name__: s for s in (ExtractedNeeds, BatchAssignment)}
+RESPONSE_SCHEMAS = {"extract_needs": ExtractedNeeds, "assign_topic": BatchAssignment, "propose_topic": ProposedTopic}
+SCHEMAS = {s.__name__: s for s in RESPONSE_SCHEMAS.values()}
 NAMESPACE = UUID("4ca17d64-e9aa-529a-8fa4-7d5bd760f4aa")
 
 
@@ -43,7 +44,7 @@ class TextRecording(Contract):
 
 def validate_record(record: TextRecording):
     schema = SCHEMAS.get(record.schema_name)
-    expected = ExtractedNeeds if record.request.operation == "extract_needs" else BatchAssignment
+    expected = RESPONSE_SCHEMAS[record.request.operation]
     if schema is not expected or semantic_hash(schema.model_json_schema()) != record.schema_hash:
         raise GatewayUnavailable("REPLAY_SCHEMA_MISMATCH", "Схема записи изменилась. Пересоздайте проверенный набор.")
     meta = record.metadata

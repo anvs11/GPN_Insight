@@ -116,6 +116,8 @@ class Repository(StorageRepository):
         with self.transaction() as tx:
             db = tx._db
             metadata, topic = self._topic(db, topic_id)
+            if topic.status == "merged":
+                topic = topic.model_copy(update={"canonical_topic_id": tx.resolve_topic_id(topic_id)})
             needs = [ExtractedNeed.model_validate_json(r["body_json"]) for r in self._active_needs(db, topic_id)]
             topic = topic.model_copy(update={"need_ids": [n.need_id for n in needs], "evidence": [EvidenceRef(source_id=n.source_id, fragment_id=n.fragment_id, quote=n.evidence_quote) for n in needs]})
             sources = [tx.get_source(s, topic.passport.product_id) for s in sorted({n.source_id for n in needs})]
@@ -148,6 +150,17 @@ class Repository(StorageRepository):
         return TopicDetail(topic=topic, stats=stats, sources=sources, history=history, model_mode=mode,
                            synthetic=bool(metadata["synthetic"]) or historical_synthetic or any(s.synthetic for s in sources),
                            data_origin=metadata["origin"], analysis_mode=metadata["analysis_mode"], pending_source_ids=pending)
+
+    def resolve_topic_id(self, topic_id: str) -> str:
+        with self._session() as db:
+            visited = set()
+            while topic_id not in visited:
+                visited.add(topic_id)
+                _, topic = self._topic(db, topic_id)
+                if topic.status != "merged":
+                    return topic_id
+                topic_id = topic.canonical_topic_id
+            raise RepositoryError("CANONICAL_TOPIC_CYCLE", "Цепочка объединений повреждена. Проверьте историю тем.")
 
     def list_topic_ids(self, support_level: str | None = "repeated", product_id: str = "webneft") -> list[str]:
         with self._session() as db:

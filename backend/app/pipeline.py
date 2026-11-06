@@ -9,7 +9,7 @@ from .gateways import GatewayUnavailable
 from .replay import semantic_hash, stable_id
 from .schemas import (
     AssignmentResult, CatalogSnapshot, EvidenceRef, ExtractedNeed, ExtractionResult, MaterialError,
-    NormalizedDocument, ProcessingProfile, ReviewItem, Run, SourceDetail, TicketInput,
+    NormalizedDocument, ProcessingProfile, ReviewItem, Run, SourceDetail, TicketInput, Topic, TopicPassport,
 )
 from .storage import now
 
@@ -78,14 +78,23 @@ class Pipeline:
                 "version": source.source_version, "content_hash": source.content_hash, "need_id": need_id,
                 "mode": run.mode, "profile": profile.model_dump(mode="json")})
 
-        def check_metadata(metadata, operation):
+        def check_metadata(metadata, operation, *, proposal=False):
             if not metadata:
                 raise RepositoryError("ANALYSIS_PROVENANCE_MISSING", "Анализ должен сообщить происхождение результатов.", 422)
+            expected_hashes = {profile.prompt_hashes[operation]}
+            if proposal:
+                if "propose_topic" not in profile.prompt_hashes:
+                    raise RepositoryError("PROPOSAL_PROFILE_MISSING", "Для новой темы нужен профиль с хешем propose_topic.", 422)
+                expected_hashes.add(profile.prompt_hashes["propose_topic"])
+                if len(metadata) < 2:
+                    raise RepositoryError("ANALYSIS_PROVENANCE_MISSING", "Нужны ответы поиска и предложения новой темы.", 422)
             for meta in metadata:
                 if (meta.model_id != profile.model_id or meta.recording_set_version != profile.recording_set_version or
-                    meta.prompt_hash != profile.prompt_hashes[operation] or (run.mode == "live" and meta.origin != "model")):
+                    meta.prompt_hash not in expected_hashes or (run.mode == "live" and meta.origin != "model")):
                     raise RepositoryError("ANALYSIS_PROVENANCE_CONFLICT", "Происхождение анализа не совпало с профилем запуска.", 422)
                 origins.add(meta.origin)
+            if not expected_hashes.issubset({m.prompt_hash for m in metadata}):
+                raise RepositoryError("ANALYSIS_PROVENANCE_MISSING", "Отсутствует происхождение обязательного этапа анализа.", 422)
 
         # Первый проход целиком заканчивается до любого назначения.
         for source in sources:
@@ -120,6 +129,9 @@ class Pipeline:
                 if document.errors:
                     errors.extend(document.errors)
                     failed += 1
+                    error(source_id, "extraction", GatewayUnavailable("EXTRACTION_MATERIAL_ERRORS", "Анализ ошибочного материала пропущен."))
+                    update("extract")
+                    continue
                 else:
                     success += 1
             except Exception as exc:
@@ -156,7 +168,8 @@ class Pipeline:
                 checkpoint = self.repo.checkpoint(assignment_key)
                 if checkpoint:
                     if "manual_review_id" not in checkpoint:
-                        check_metadata(AssignmentResult.model_validate(checkpoint).metadata, "assign_topic")
+                        saved = AssignmentResult.model_validate(checkpoint)
+                        check_metadata(saved.metadata, "assign_topic", proposal=saved.proposed_topic is not None)
                     reused += 1
                 else:
                     overrides = self.repo.get_overrides(source.ticket.source_id, source.ticket.product_id)
@@ -182,15 +195,17 @@ class Pipeline:
                         continue
                     snapshot = self.repo.catalog_snapshot(source.ticket.product_id)
                     result = AssignmentResult.model_validate(self.adapters.analysis.assign_topic(need, snapshot).model_dump())
-                    check_metadata(result.metadata, "assign_topic")
+                    check_metadata(result.metadata, "assign_topic", proposal=result.proposed_topic is not None)
                     a = result.assignment
                     actual = {t.topic_id: t.passport.version for t in snapshot.topics}
                     refs = {(r.source_id, r.fragment_id, r.quote) for r in a.evidence_refs}
                     if (a.need_id != need.need_id or a.mode != run.mode or a.catalog_revision != snapshot.catalog_revision or
                         a.total_topic_count != len(actual) or not set(a.candidate_topic_ids).issubset(actual) or
+                        a.searched_topic_count != len(a.passport_versions) or
+                        (a.candidate_set_complete and set(a.passport_versions) != set(actual)) or
                         any(actual.get(k) != v for k, v in a.passport_versions.items()) or
-                        (a.decision == "new" and set(a.passport_versions) != set(actual)) or
-                        (a.decision == "match" and a.matched_topic_id not in a.passport_versions) or
+                        (a.decision == "new" and (set(a.passport_versions) != set(actual) or a.candidate_topic_ids)) or
+                        (a.decision == "match" and (a.matched_topic_id not in a.passport_versions or a.matched_topic_id not in a.candidate_topic_ids)) or
                         refs != {(need.source_id, need.fragment_id, need.evidence_quote)}):
                         raise RepositoryError("ASSIGNMENT_INVALID", "Назначение не соответствует источнику или снимку каталога.", 422)
                     with self.repo.transaction() as tx:
@@ -201,11 +216,27 @@ class Pipeline:
                             target = tx.get_topic(a.matched_topic_id, run.mode).topic
                             tx.attach_needs(target.topic_id, [need.need_id], expected_version=target.version)
                         elif a.decision == "new":
-                            topic = result.new_topic.model_copy(update={"topic_id": stable_id("topic", need.need_id)})
+                            if result.proposed_topic is not None:
+                                proposed = result.proposed_topic
+                                examples = proposed.inclusion_examples + proposed.exclusion_examples
+                                if any((ref.source_id, ref.fragment_id, ref.quote) != (
+                                    need.source_id, need.fragment_id, need.evidence_quote)
+                                    for example in examples for ref in example.evidence_refs):
+                                    raise RepositoryError("NEW_TOPIC_INVALID", "Примеры новой темы должны ссылаться на назначаемую потребность.", 422)
+                                topic = Topic(topic_id=stable_id("topic", need.need_id), title=proposed.title, summary=proposed.summary,
+                                    passport=TopicPassport(product_id=source.ticket.product_id, scenario=proposed.scenario,
+                                        need_statement=proposed.need_statement, scope=proposed.scope,
+                                        inclusion_examples=proposed.inclusion_examples, exclusion_examples=proposed.exclusion_examples,
+                                        version=1, scope_confirmed=False),
+                                    need_ids=[need.need_id], evidence=[EvidenceRef(source_id=need.source_id,
+                                        fragment_id=need.fragment_id, quote=need.evidence_quote)])
+                            else:
+                                topic = result.new_topic.model_copy(update={"topic_id": stable_id("topic", need.need_id)})
                             if topic.need_ids != [need.need_id] or topic.passport.product_id != source.ticket.product_id:
                                 raise RepositoryError("NEW_TOPIC_INVALID", "Новая тема должна относиться к назначаемой потребности.", 422)
                             tx.create_topic(topic, origin="authored" if "authored" in {m.origin for m in result.metadata} else "model", analysis_mode=run.mode)
-                            result = result.model_copy(update={"new_topic": topic})
+                            if result.proposed_topic is None:
+                                result = result.model_copy(update={"new_topic": topic})
                         else:
                             tx.save_review(ReviewItem(review_id=stable_id("review", need.need_id, assignment_key), version=1,
                                 kind="assignment", need_ids=[need.need_id], candidate_topic_ids=a.candidate_topic_ids,

@@ -16,6 +16,7 @@ from .imports_api import router as imports_router
 from .pipeline import PipelineAdapters
 from .repositories import Repository, RepositoryError
 from .runs import RunService
+from .workflow_api import router as workflow_router
 
 
 def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineAdapters | None = None) -> FastAPI:
@@ -89,6 +90,7 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
 
     app.include_router(router)
     app.include_router(imports_router)
+    app.include_router(workflow_router)
     return app
 
 

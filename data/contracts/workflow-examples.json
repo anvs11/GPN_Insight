@@ -1,0 +1,17 @@
+{
+  "synthetic": true,
+  "purpose": "contract_examples_only",
+  "examples": [
+    {"schema": "ResolveReviewRequest", "value": {"version": 1, "action": "attach", "author": "Синтетический аналитик", "reason": "Источники проверены", "topic_id": "SYNTHETIC-TOPIC", "topic_versions": {"SYNTHETIC-TOPIC": 3}}},
+    {"schema": "ResolveReviewRequest", "value": {"version": 1, "action": "insufficient_data", "author": "Синтетический аналитик", "reason": "Нужен дополнительный контекст", "topic_versions": {}}},
+    {"schema": "MergePreviewRequest", "value": {"target_topic_id": "SYNTHETIC-TARGET"}},
+    {"schema": "MergeTopicsRequest", "value": {"version": 3, "target_topic_id": "SYNTHETIC-TARGET", "target_version": 2, "author": "Синтетический аналитик", "reason": "Явно объединить темы", "confirm_decision_conflict": true}},
+    {"schema": "MergeResult", "value": {"source_topic_id": "SYNTHETIC-SOURCE-TOPIC", "target_topic_id": "SYNTHETIC-TARGET", "source_version": 5, "target_version": 3}},
+    {"schema": "ExcludeNeedsRequest", "value": {"version": 3, "need_ids": ["SYNTHETIC-NEED"], "author": "Синтетический аналитик", "reason": "Неверная связь"}},
+    {"schema": "ExcludeResult", "value": {"topic_id": "SYNTHETIC-TOPIC", "topic_version": 4, "need_ids": ["SYNTHETIC-NEED"], "review_ids": ["SYNTHETIC-REVIEW"]}},
+    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "linked", "owner": "Синтетический владелец", "reason": "Передано в разработку", "existing_issue_ref": "SYNTHETIC-ISSUE-1"}},
+    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "deferred", "owner": "Синтетический владелец", "reason": "Отложено", "review_after": "2026-11-01"}},
+    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "declined", "owner": "Синтетический владелец", "reason": "Бизнес-решение; это не ошибка анализа"}},
+    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "implemented", "owner": "Синтетический владелец", "reason": "Реализовано", "implemented_at": "2026-10-20T12:00:00+03:00", "implementation_comment": "Синтетический пример результата"}}
+  ]
+}

@@ -13,7 +13,7 @@ from ..analysis.service import DEFAULT_ASSIGN_PROMPT_PATH
 from ..config import Settings
 from ..gateways import GatewayResult, GatewayUnavailable, TextGateway, TextRequest
 from ..pipeline import PipelineAdapters
-from ..replay import ReplayGateway, canonical, request_key
+from ..replay import RESPONSE_SCHEMAS, ReplayGateway, canonical, request_key
 from ..schemas import (
     AssignmentResult, BatchAssignment, CatalogSnapshot, ExtractedNeed, ExtractedNeeds,
     ExtractionResult, NormalizedDocument, ProcessingProfile, RecordingMeta,
@@ -21,12 +21,17 @@ from ..schemas import (
 from .normalizer import NORMALIZATION_HASH, NORMALIZATION_VERSION, TextNormalizer
 
 INTEGRATION_VERSION = "u1-text-integration-v1"
-PROMPT_VERSIONS = {"extract_needs": "extract-needs-v1", "assign_topic": "assign-topic-v1"}
+PROMPT_VERSIONS = {"extract_needs": "extract-needs-v1", "assign_topic": "assign-topic-v1", "propose_topic": "propose-topic-v1"}
 
 
 def _prompts() -> dict[str, str]:
-    return {"extract_needs": DEFAULT_PROMPT_PATH.read_text(encoding="utf-8"),
-            "assign_topic": DEFAULT_ASSIGN_PROMPT_PATH.read_text(encoding="utf-8")}
+    prompts = {"extract_needs": DEFAULT_PROMPT_PATH.read_text(encoding="utf-8"),
+               "assign_topic": DEFAULT_ASSIGN_PROMPT_PATH.read_text(encoding="utf-8")}
+    # Отсутствующий промпт U2 не заменяем шаблоном. Старый профиль остаётся прежним.
+    proposal_path = DEFAULT_ASSIGN_PROMPT_PATH.with_name("propose.md")
+    if proposal_path.exists():
+        prompts["propose_topic"] = proposal_path.read_text(encoding="utf-8")
+    return prompts
 
 
 def _policy(settings: Settings, max_attempts: int) -> dict:
@@ -71,8 +76,8 @@ class _CheckedGateway:
     def generate(self, request: TextRequest, response_schema) -> GatewayResult:
         request = TextRequest.model_validate(request.model_dump()).model_copy(deep=True)
         op = request.operation
-        expected_schema = ExtractedNeeds if op == "extract_needs" else BatchAssignment
-        if (response_schema is not expected_schema or request.prompt != self.prompts[op] or
+        expected_schema = RESPONSE_SCHEMAS[op]
+        if (op not in self.prompts or response_schema is not expected_schema or request.prompt != self.prompts[op] or
             request.prompt_version != PROMPT_VERSIONS[op] or
             canonical(request.parameters) != canonical(self.profile.parameters)):
             raise GatewayUnavailable("ANALYSIS_REQUEST_CONFLICT", "Запрос анализа не совпал с зафиксированным профилем.")
@@ -185,7 +190,7 @@ def build_text_pipeline(gateway: TextGateway, profile: ProcessingProfile, settin
     if settings.app_model_mode == "live" and isinstance(gateway, ReplayGateway):
         raise GatewayUnavailable("ANALYSIS_MODE_CONFLICT", "ReplayGateway нельзя подключать как live-модель.")
     prompts = _prompts()
-    if any(profile.prompt_hashes[op] != sha256(text.encode("utf-8")).hexdigest() for op, text in prompts.items()):
+    if set(profile.prompt_hashes) != set(prompts) or any(profile.prompt_hashes[op] != sha256(text.encode("utf-8")).hexdigest() for op, text in prompts.items()):
         raise GatewayUnavailable("ANALYSIS_PROFILE_CONFLICT", "Хеши промптов изменились. Нужны новый профиль и точные записи replay.")
     checked_gateway = _CheckedGateway(gateway, profile, settings, prompts)
     service = build_analysis(checked_gateway, profile.model_copy(deep=True), settings, mode=settings.app_model_mode)
