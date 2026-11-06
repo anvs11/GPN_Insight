@@ -1,4 +1,5 @@
 import { ProcessingPanel } from './components/ProcessingPanel'
+import { TopicList } from './components/TopicList'
 
 export default function App() {
   return (
@@ -8,12 +9,7 @@ export default function App() {
 
       <ProcessingPanel />
 
-      <article>
-        <p><strong>Демонстрационные данные</strong></p>
-        <p>Статичный макет карточки, не результат обработки сервером.</p>
-        <h2>Экспорт списка заявок</h2>
-        <p>Пользователям нужен способ выгрузить отфильтрованный список заявок.</p>
-      </article>
+      <TopicList />
     </main>
   )
 }
