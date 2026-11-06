@@ -1,0 +1,35 @@
+{
+  "synthetic": true,
+  "purpose": "contract_examples_only_not_analysis_quality",
+  "version": "topic-proposal-contract-authored-v1",
+  "entries": [
+    {
+      "schema_name": "ProposedTopic",
+      "model_id": "synthetic-contract-no-live-model",
+      "normalization_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "request": {
+        "operation": "propose_topic",
+        "prompt": "Синтетический пример replay-контракта. Это не рабочий промпт анализа.",
+        "prompt_version": "propose-contract-only-v1",
+        "data": {"synthetic": true, "catalog_revision": 0, "quote": "Нужен экспорт отчёта в CSV."},
+        "parameters": {"temperature": 0}
+      },
+      "response": {
+        "title": "Синтетический пример: экспорт отчёта",
+        "summary": "В синтетическом источнике запрошен экспорт отчёта в CSV.",
+        "scenario": "Подготовка отчёта",
+        "need_statement": "Экспортировать отчёт в CSV",
+        "scope": "Только экспорт отчёта в CSV; границы требуют проверки человеком.",
+        "inclusion_examples": [
+          {
+            "text": "Просьба выгрузить отчёт в CSV",
+            "evidence_refs": [
+              {"source_id": "SYNTHETIC-SOURCE-1", "fragment_id": "SYNTHETIC-FRAGMENT-1", "quote": "Нужен экспорт отчёта в CSV."}
+            ]
+          }
+        ],
+        "exclusion_examples": []
+      }
+    }
+  ]
+}

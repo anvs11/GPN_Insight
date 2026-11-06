@@ -123,8 +123,8 @@ def test_decision_errors_do_not_change_card(settings, fixture):
         assert client.patch(path, json={"status": "needs_research", "version": 1}).status_code == 422
         assert client.patch(path, json={"status": "needs_research", "version": 1, "owner": "Тест", "reason": "   "}).status_code == 422
         assert client.patch(path, json={"status": "deferred", "version": 1, "owner": "Тест", "reason": "Нет даты"}).status_code == 422
-        response = client.patch(path, json={"status": "declined", "version": 1, "owner": "Тест", "reason": "Ещё не реализовано"})
-        assert response.status_code == 501 and response.json()["code"] == "FEATURE_NOT_IMPLEMENTED"
+        response = client.patch(path, json={"status": "implemented", "version": 1, "owner": "Тест", "reason": "Нет даты и результата"})
+        assert response.status_code == 422
         assert client.get("/api/v1/topics/missing").status_code == 404
         assert client.post("/api/v1/runs", json={}).status_code == 503
     assert repo.get_topic(fixture.topic.topic_id, "replay").topic.version == 1

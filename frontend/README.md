@@ -23,7 +23,7 @@
 Терминал 1 — Backend. Для проверки выбрана отдельная база; `.env` и прежняя рабочая база не меняются:
 
 ```powershell
-Set-Location 'D:\Python\Кейс ГЗ\GPN_Insight\backend'
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'backend')
 $env:APP_DB_PATH = 'var/frontend-local-check.db'
 $env:APP_MODEL_MODE = 'replay'
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
@@ -34,7 +34,7 @@ $env:APP_MODEL_MODE = 'replay'
 Терминал 2 — Frontend:
 
 ```powershell
-Set-Location 'D:\Python\Кейс ГЗ\GPN_Insight\frontend'
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'frontend')
 npm run dev
 ```
 
@@ -59,7 +59,7 @@ npm run dev
 Остановите свой Backend через Ctrl+C. В терминале Backend выполните:
 
 ```powershell
-Set-Location 'D:\Python\Кейс ГЗ\GPN_Insight\backend'
+Set-Location (Join-Path (git rev-parse --show-toplevel) 'backend')
 $env:APP_DB_PATH = 'var/frontend-topics-demo.db'
 $env:APP_MODEL_MODE = 'replay'
 ..\.venv\Scripts\python.exe -X utf8 -m app.cli init-db

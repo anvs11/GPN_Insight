@@ -13,7 +13,7 @@ ResponseT = TypeVar("ResponseT", bound=BaseModel)
 
 
 class TextRequest(Contract):
-    operation: Literal["extract_needs", "assign_topic"]
+    operation: Literal["extract_needs", "assign_topic", "propose_topic"]
     prompt: Text
     prompt_version: Text
     data: dict[str, JsonValue]

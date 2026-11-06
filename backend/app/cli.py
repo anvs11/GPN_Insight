@@ -2,6 +2,7 @@ import argparse
 import json
 import sqlite3
 import sys
+from datetime import date
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -32,7 +33,12 @@ STORAGE_SCHEMAS = {cls.__name__: cls for cls in (
 
 PIPELINE_SCHEMAS = {cls.__name__: cls for cls in (
     schemas.RunRequest, schemas.ProcessingProfile, schemas.ExtractedNeeds,
-    schemas.ExtractionResult, schemas.AssignmentResult,
+    schemas.ExtractionResult, schemas.AssignmentResult, schemas.ProposedTopic,
+)}
+
+WORKFLOW_SCHEMAS = {cls.__name__: cls for cls in (
+    schemas.ResolveReviewRequest, schemas.MergePreviewRequest, schemas.MergePreview, schemas.MergeTopicsRequest,
+    schemas.MergeResult, schemas.ExcludeNeedsRequest, schemas.ExcludeResult,
 )}
 
 
@@ -88,21 +94,46 @@ def validate_http_examples(path: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="GPN Insight — команды backend")
-    parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas", "record", "verify-recordings", "import"])
+    parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas", "record", "verify-recordings", "import", "report"])
+    parser.add_argument("--date-from", type=date.fromisoformat)
+    parser.add_argument("--date-to", type=date.fromisoformat)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--fixture", type=Path, default=REPO_ROOT / "data/contracts/demo_state.json")
     parser.add_argument("--examples", type=Path, default=REPO_ROOT / "data/contracts/examples.json")
     parser.add_argument("--http-examples", type=Path, default=REPO_ROOT / "data/contracts/http-examples.json")
-    parser.add_argument("--output", type=Path, default=REPO_ROOT / "var/contracts/schemas.json")
+    parser.add_argument("--proposal-example", type=Path, default=REPO_ROOT / "data/contracts/topic-proposal.json")
+    parser.add_argument("--workflow-examples", type=Path, default=REPO_ROOT / "data/contracts/workflow-examples.json")
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--recordings", type=Path, default=REPO_ROOT / "var/recordings/text")
     parser.add_argument("--authored-input", type=Path)
     parser.add_argument("--requests", type=Path)
     args = parser.parse_args()
     if args.command != "import" and (args.manifest is not None or args.dry_run):
         parser.error("Параметры --manifest и --dry-run доступны только для import.")
+    if args.command != "report" and (args.date_from is not None or args.date_to is not None):
+        parser.error("Параметры периода доступны только для report.")
     try:
-        if args.command == "import":
+        if args.command == "report":
+            from .report import build_report
+            settings = Settings()
+            path = settings.repo_path(settings.app_db_path)
+            if not path.is_file():
+                raise RepositoryError("REPORT_DATABASE_MISSING", "База не найдена. Инициализируйте отдельную базу перед отчётом.", 503)
+            report = build_report(Repository(path), settings.app_model_mode,
+                schemas.RunRequest(date_from=args.date_from, date_to=args.date_to))
+            if args.output is not None:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    with args.output.open("x", encoding="utf-8") as stream:
+                        stream.write(report)
+                except FileExistsError:
+                    print("REPORT_OUTPUT_EXISTS: Файл уже существует. Выберите новое имя; прежний файл сохранён.", file=sys.stderr)
+                    return 1
+                print("Markdown-сводка сохранена в UTF-8; исходные обращения не включены.")
+            else:
+                print(report, end="")
+        elif args.command == "import":
             if args.manifest is None:
                 parser.error("Для import укажите --manifest с UTF-8 JSON.")
             with args.manifest.open("rb") as stream:
@@ -141,11 +172,22 @@ def main() -> int:
         elif args.command == "validate-examples":
             count = validate_examples(args.examples)
             http_count = validate_http_examples(args.http_examples)
+            proposal = json.loads(args.proposal_example.read_text(encoding="utf-8"))
+            if proposal.get("synthetic") is not True or proposal.get("purpose") != "contract_example_only" or proposal.get("schema") != "ProposedTopic":
+                raise ValueError("Нужен явно синтетический пример ProposedTopic")
+            schemas.ProposedTopic.model_validate(proposal["value"])
+            workflow = json.loads(args.workflow_examples.read_text(encoding="utf-8"))
+            if workflow.get("synthetic") is not True or workflow.get("purpose") != "contract_examples_only":
+                raise ValueError("Нужны синтетические примеры ручных операций")
+            workflow_schemas = {**WORKFLOW_SCHEMAS, "DecisionUpdate": schemas.DecisionUpdate}
+            for example in workflow["examples"]:
+                workflow_schemas[example["schema"]].model_validate(example["value"])
             fixture = load_fixture(args.fixture)
-            print(f"Примеры: {count}; HTTP-примеры: {http_count}; источников тестовой карточки: {len(fixture.sources)}; synthetic=true, origin=authored. База не изменена.")
+            print(f"Примеры: {count}; HTTP-примеры: {http_count}; ProposedTopic: valid; workflow: {len(workflow['examples'])}; источников тестовой карточки: {len(fixture.sources)}; synthetic=true, origin=authored. База не изменена.")
         elif args.command == "export-schemas":
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
+            output = args.output or REPO_ROOT / "var/contracts/schemas.json"
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS | WORKFLOW_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
             print("JSON Schema контрактов сохранены.")
         else:
             settings = Settings()

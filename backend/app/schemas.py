@@ -155,6 +155,18 @@ class BatchAssignment(Contract):
         return self
 
 
+class ProposedTopic(Contract):
+    """Содержимое новой темы; постоянство и бизнес-поля назначает сервер."""
+
+    title: Text
+    summary: Text
+    scenario: Text
+    need_statement: Text
+    scope: Text
+    inclusion_examples: Annotated[list[PassportExample], Field(min_length=1)]
+    exclusion_examples: list[PassportExample] = Field(default_factory=list)
+
+
 class TopicAssignment(Contract):
     """Итог сервера, а не допустимая схема ответа модели."""
 
@@ -242,6 +254,7 @@ class ReviewResolution(Contract):
     author: Text
     resolved_at: AwareDatetime
     topic_id: Identifier | None = None
+    request_hash: Sha256 | None = None
 
 
 class ReviewItem(Contract):
@@ -524,12 +537,14 @@ class ManualOverride(Contract):
 class TopicChangeEvent(Contract):
     event_id: Identifier
     topic_id: Identifier
-    kind: Literal["passport", "attachment", "manual_override"]
+    kind: Literal["passport", "attachment", "manual_override", "merge", "exclusion"]
     author: Text
     reason: Text
     occurred_at: AwareDatetime
     before: dict[str, JsonValue]
     after: dict[str, JsonValue]
+    request_hash: Sha256 | None = None
+    result: dict[str, JsonValue] | None = None
 
 
 class CatalogSnapshot(Contract):
@@ -576,11 +591,78 @@ class ExtractionResult(Contract):
 
 class AssignmentResult(Contract):
     assignment: TopicAssignment
+    # Сохраняем чтение checkpoints и старых серверных адаптеров.
     new_topic: Topic | None = None
+    proposed_topic: ProposedTopic | None = None
     metadata: list[RecordingMeta]
 
     @model_validator(mode="after")
     def new_topic_payload(self) -> Self:
-        if (self.assignment.decision == "new") != (self.new_topic is not None):
-            raise ValueError("Новая тема нужна только для назначения new")
+        payloads = int(self.new_topic is not None) + int(self.proposed_topic is not None)
+        if payloads != int(self.assignment.decision == "new"):
+            raise ValueError("Для new нужен ровно один proposed_topic либо прежний new_topic")
         return self
+
+
+class ResolveReviewRequest(Contract):
+    version: Version
+    action: Literal["attach", "create", "insufficient_data"]
+    author: Text
+    reason: Text
+    topic_versions: dict[str, Version] = Field(default_factory=dict)
+    topic_id: Identifier | None = None
+    proposed_topic: ProposedTopic | None = None
+
+    @model_validator(mode="after")
+    def action_payload(self) -> Self:
+        if (self.action == "attach") != (self.topic_id is not None):
+            raise ValueError("topic_id нужен только для attach")
+        if (self.action == "create") != (self.proposed_topic is not None):
+            raise ValueError("proposed_topic нужен только для create")
+        return self
+
+
+class MergePreviewRequest(Contract):
+    target_topic_id: Identifier
+
+
+class MergePreview(Contract):
+    source: TopicDetail
+    target: TopicDetail
+    decision_conflict: bool
+
+
+class MergeTopicsRequest(Contract):
+    version: Version
+    target_topic_id: Identifier
+    target_version: Version
+    author: Text
+    reason: Text
+    confirm_decision_conflict: Annotated[bool, Field(strict=True)] = False
+
+
+class MergeResult(Contract):
+    source_topic_id: Identifier
+    target_topic_id: Identifier
+    source_version: Version
+    target_version: Version
+
+
+class ExcludeNeedsRequest(Contract):
+    version: Version
+    need_ids: Annotated[list[Identifier], Field(min_length=1, max_length=100)]
+    author: Text
+    reason: Text
+
+    @model_validator(mode="after")
+    def unique_needs(self) -> Self:
+        if len(set(self.need_ids)) != len(self.need_ids):
+            raise ValueError("Потребности не должны повторяться")
+        return self
+
+
+class ExcludeResult(Contract):
+    topic_id: Identifier
+    topic_version: Version
+    need_ids: list[Identifier]
+    review_ids: list[Identifier]

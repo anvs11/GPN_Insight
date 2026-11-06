@@ -1,0 +1,21 @@
+{
+  "synthetic": true,
+  "purpose": "contract_example_only",
+  "schema": "ProposedTopic",
+  "value": {
+    "title": "Синтетический пример: экспорт отчёта",
+    "summary": "В синтетическом источнике запрошен экспорт отчёта в CSV.",
+    "scenario": "Подготовка отчёта",
+    "need_statement": "Экспортировать отчёт в CSV",
+    "scope": "Только экспорт отчёта в CSV; границы требуют проверки человеком.",
+    "inclusion_examples": [
+      {
+        "text": "Просьба выгрузить отчёт в CSV",
+        "evidence_refs": [
+          {"source_id": "SYNTHETIC-SOURCE-1", "fragment_id": "SYNTHETIC-FRAGMENT-1", "quote": "Нужен экспорт отчёта в CSV."}
+        ]
+      }
+    ],
+    "exclusion_examples": []
+  }
+}

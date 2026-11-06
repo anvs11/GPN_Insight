@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request
 from .db import connection
 from .gateways import model_health
 from .repositories import RepositoryError
-from .schemas import DecisionUpdate, ErrorResponse, Health, Run, RunRequest, SourceDetail, TopicDetail
+from .schemas import DecisionUpdate, ErrorResponse, Health, ReviewItem, Run, RunRequest, SourceDetail, TopicDetail
 
 router = APIRouter(prefix="/api/v1", responses={
     code: {"model": ErrorResponse} for code in (403, 404, 409, 422, 501, 503)
@@ -55,10 +55,26 @@ def source(source_id: str, request: Request) -> SourceDetail:
     return request.app.state.repository.get_source(source_id)
 
 
+@router.get("/reviews", response_model=list[ReviewItem])
+@router.get("/review-items", response_model=list[ReviewItem])
+def reviews(request: Request, status: Literal["open", "resolved", "insufficient_data", "all"] = "open") -> list[ReviewItem]:
+    values = list(request.query_params.multi_items())
+    if len(values) > 1 or any(name != "status" for name, _ in values):
+        raise RepositoryError("UNSUPPORTED_FILTER", "Допустим один status: open, resolved, insufficient_data или all.", 422)
+    return request.app.state.repository.list_reviews(None if status == "all" else status)
+
+
+@router.get("/reviews/{review_id}", response_model=ReviewItem)
+@router.get("/review-items/{review_id}", response_model=ReviewItem)
+def review(review_id: str, request: Request) -> ReviewItem:
+    return request.app.state.repository.get_review(review_id)
+
+
 @router.patch("/topics/{topic_id}/decision", response_model=TopicDetail)
 def decision(topic_id: str, update: DecisionUpdate, request: Request) -> TopicDetail:
-    if update.status not in {"new", "needs_research"}:
-        raise RepositoryError("FEATURE_NOT_IMPLEMENTED", "Сейчас доступны статусы «Новое» и «Исследуется». Для остальных решений требуется следующая версия сервиса.", 501)
+    from .workflow_api import no_query, validate_issue_ref
+    no_query(request)
+    validate_issue_ref(update.existing_issue_ref, request.app.state.settings.app_issue_hosts)
     repo = request.app.state.repository
     # Ответ содержит именно сохранённую версию даже при параллельном PATCH.
     with repo.transaction() as tx:
