@@ -13,6 +13,7 @@ from .demo import load_fixture
 from .repositories import Repository, RepositoryError
 from .replay import SCHEMAS, make_record, publish_records, verify_recordings
 from .gateways import GatewayUnavailable, TextRequest
+from .ingestion.importer import MAX_MANIFEST_BYTES, import_tickets
 
 EXAMPLE_SCHEMAS = {
     cls.__name__: cls for cls in (
@@ -87,7 +88,9 @@ def validate_http_examples(path: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="GPN Insight — команды backend")
-    parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas", "record", "verify-recordings"])
+    parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas", "record", "verify-recordings", "import"])
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--fixture", type=Path, default=REPO_ROOT / "data/contracts/demo_state.json")
     parser.add_argument("--examples", type=Path, default=REPO_ROOT / "data/contracts/examples.json")
     parser.add_argument("--http-examples", type=Path, default=REPO_ROOT / "data/contracts/http-examples.json")
@@ -96,8 +99,22 @@ def main() -> int:
     parser.add_argument("--authored-input", type=Path)
     parser.add_argument("--requests", type=Path)
     args = parser.parse_args()
+    if args.command != "import" and (args.manifest is not None or args.dry_run):
+        parser.error("Параметры --manifest и --dry-run доступны только для import.")
     try:
-        if args.command == "verify-recordings":
+        if args.command == "import":
+            if args.manifest is None:
+                parser.error("Для import укажите --manifest с UTF-8 JSON.")
+            with args.manifest.open("rb") as stream:
+                manifest = stream.read(MAX_MANIFEST_BYTES + 1)
+            if len(manifest) > MAX_MANIFEST_BYTES:
+                raise RepositoryError("MANIFEST_TOO_LARGE", "Manifest превышает 1 МиБ.", 413)
+            settings = Settings()
+            repository = Repository(settings.repo_path(settings.app_db_path))
+            result = import_tickets(manifest, dry_run=args.dry_run, repository=repository)
+            print(result.model_dump_json())
+            return 1 if isinstance(result, schemas.ImportPreview) and not result.can_commit else 0
+        elif args.command == "verify-recordings":
             queries = None
             if args.requests:
                 if args.requests.stat().st_size > 10 * 1024 * 1024:

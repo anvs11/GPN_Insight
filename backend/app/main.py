@@ -8,17 +8,25 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .api import router
+from .bootstrap import configured_text_pipeline
 from .config import Settings
 from .db import initialize
 from .gateways import UnavailableGateways, text_gateway
+from .imports_api import router as imports_router
 from .pipeline import PipelineAdapters
 from .repositories import Repository, RepositoryError
 from .runs import RunService
 
 
 def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineAdapters | None = None) -> FastAPI:
-    settings = settings or Settings()
+    # Режим/профиль процесса фиксируются вместе: изменение объекта вызывающим
+    # кодом не должно переименовать работающий replay в live в health.
+    settings = (settings or Settings()).model_copy(deep=True)
     repository = Repository(settings.repo_path(settings.app_db_path))
+    configured_gateway = text_gateway(settings)
+    binding_error = None
+    if pipeline_adapters is None:
+        pipeline_adapters, binding_error = configured_text_pipeline(settings, configured_gateway)
     runs = RunService(repository, settings.app_model_mode, pipeline_adapters)
 
     @asynccontextmanager
@@ -35,7 +43,8 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
     app.state.settings = settings
     app.state.repository = repository
     app.state.gateways = UnavailableGateways(settings)
-    app.state.text_gateway = text_gateway(settings)
+    app.state.text_gateway = configured_gateway
+    app.state.text_pipeline_error = binding_error
     app.state.run_service = runs
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]"])
 
@@ -79,6 +88,7 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
         return JSONResponse(status_code=503, content={"code": "DATABASE_UNAVAILABLE", "message": "База временно недоступна. Повторите запрос; сохранение не подтверждено."})
 
     app.include_router(router)
+    app.include_router(imports_router)
     return app
 
 

@@ -21,6 +21,9 @@ def health(request: Request) -> Health:
     result.processing_state = "busy" if service.repo.active_run() else "idle"
     result.pipeline_ready = service.adapters is not None
     result.integration_errors = [] if result.pipeline_ready else ["NORMALIZER_NOT_CONNECTED", "ANALYSIS_NOT_CONNECTED"]
+    binding_error = getattr(request.app.state, "text_pipeline_error", None)
+    if not result.pipeline_ready and binding_error:
+        result.integration_errors.append(binding_error)
     return result
 
 

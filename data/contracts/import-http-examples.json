@@ -1,0 +1,150 @@
+{
+  "synthetic": true,
+  "origin": "authored",
+  "purpose": "import_http_contract_examples_only",
+  "note": "Подготовленные синтетические примеры контрактов, не записи реального импорта и не результаты модели.",
+  "manifest_example": "data/demo/manifest.json",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/imports?dry_run=true",
+    "content_type": "multipart/form-data",
+    "parts": [
+      {
+        "name": "manifest",
+        "filename": "manifest.json",
+        "content_type": "application/json"
+      }
+    ],
+    "files_policy": "Любые повторяющиеся files сейчас отклоняются целиком; filename не образует путь хранения."
+  },
+  "limits": {
+    "body_bytes": 1114112,
+    "manifest_bytes": 1048576,
+    "parts": 8,
+    "fields": 8,
+    "files": 8,
+    "part_header_bytes": 8192
+  },
+  "responses": {
+    "valid_preview": {
+      "status_code": 200,
+      "body": {
+        "dataset_id": "synthetic-text-preview-v1",
+        "status": "valid",
+        "counts": {
+          "inserted": 4,
+          "updated": 0,
+          "unchanged": 0,
+          "invalid": 0
+        },
+        "errors": [],
+        "warnings": [
+          "Счётчики предварительные. Подтверждение повторно проверяет весь набор."
+        ],
+        "can_commit": true
+      }
+    },
+    "invalid_preview": {
+      "status_code": 200,
+      "body": {
+        "dataset_id": null,
+        "status": "invalid",
+        "counts": {
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 0,
+          "invalid": 1
+        },
+        "errors": [
+          {
+            "code": "MEDIA_NOT_SUPPORTED",
+            "message": "Текстовый импорт не принимает files. Уберите вложения целиком.",
+            "source_id": null,
+            "asset_id": null,
+            "field": null
+          }
+        ],
+        "warnings": [],
+        "can_commit": false
+      }
+    },
+    "commit": {
+      "status_code": 200,
+      "body": {
+        "dataset_id": "synthetic-text-preview-v1",
+        "counts": {
+          "inserted": 4,
+          "updated": 0,
+          "unchanged": 0,
+          "invalid": 0
+        },
+        "imported_at": "2026-11-06T12:00:00+03:00"
+      }
+    },
+    "repeat": {
+      "status_code": 200,
+      "body": {
+        "dataset_id": "synthetic-text-preview-v1",
+        "counts": {
+          "inserted": 0,
+          "updated": 0,
+          "unchanged": 4,
+          "invalid": 0
+        },
+        "imported_at": "2026-11-06T12:00:00+03:00"
+      }
+    },
+    "history": {
+      "status_code": 200,
+      "body": [
+        {
+          "registration_id": "00000000-0000-4000-8000-000000000001",
+          "product_id": "webneft",
+          "result": {
+            "dataset_id": "synthetic-text-preview-v1",
+            "counts": {
+              "inserted": 4,
+              "updated": 0,
+              "unchanged": 0,
+              "invalid": 0
+            },
+            "imported_at": "2026-11-06T12:00:00+03:00"
+          },
+          "synthetic": true
+        }
+      ]
+    },
+    "invalid_commit": {
+      "status_code": 422,
+      "body": {
+        "code": "MEDIA_NOT_SUPPORTED",
+        "message": "Уберите вложения. Импорт не выполнен.",
+        "run_id": null
+      }
+    },
+    "too_large": {
+      "status_code": 413,
+      "body": {
+        "code": "IMPORT_BODY_TOO_LARGE",
+        "message": "Тело запроса превышает 1 МиБ + 64 КиБ.",
+        "run_id": null
+      }
+    },
+    "run_active": {
+      "status_code": 409,
+      "body": {
+        "code": "RUN_ACTIVE",
+        "message": "Дождитесь завершения обработки перед фиксацией импорта.",
+        "run_id": null
+      }
+    },
+    "import_active": {
+      "status_code": 409,
+      "body": {
+        "code": "IMPORT_ACTIVE",
+        "message": "Идёт фиксация импорта. Повторите запуск позже.",
+        "run_id": null
+      }
+    }
+  }
+}

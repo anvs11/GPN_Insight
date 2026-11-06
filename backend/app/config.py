@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     app_recordings_root: Path = Path("data/recordings/text")
     app_replay_model_id: str = ""
     app_replay_normalization_hash: str = ""
+    app_processing_profile_path: Path | None = None
     text_model_base_url: str = ""
     text_model_id: str = ""
     text_model_token: SecretStr = SecretStr("")
