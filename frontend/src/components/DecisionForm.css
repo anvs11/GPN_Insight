@@ -1,0 +1,7 @@
+.decision-form { border-top: 1px solid var(--border); margin-top: 1.2rem; padding-top: 0.5rem; }
+.decision-form fieldset { min-width: 0; border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0; padding: 1rem; }
+.decision-form label { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; color: var(--text-h); }
+.decision-form input, .decision-form select, .decision-form textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; font: inherit; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; color: var(--text-h); background: var(--bg); }
+.decision-form textarea { resize: vertical; }
+.decision-form fieldset:disabled { opacity: 0.7; }
+.decision-confirmed { padding: 0.8rem; border-left: 3px solid #488448; background: var(--code-bg); }
