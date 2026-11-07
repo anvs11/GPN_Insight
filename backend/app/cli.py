@@ -39,6 +39,7 @@ PIPELINE_SCHEMAS = {cls.__name__: cls for cls in (
 WORKFLOW_SCHEMAS = {cls.__name__: cls for cls in (
     schemas.ResolveReviewRequest, schemas.MergePreviewRequest, schemas.MergePreview, schemas.MergeTopicsRequest,
     schemas.MergeResult, schemas.ExcludeNeedsRequest, schemas.ExcludeResult,
+    schemas.PassportFields, schemas.PassportUpdate, schemas.TopicPeriodStats,
 )}
 
 
@@ -108,13 +109,24 @@ def main() -> int:
     parser.add_argument("--recordings", type=Path, default=REPO_ROOT / "var/recordings/text")
     parser.add_argument("--authored-input", type=Path)
     parser.add_argument("--requests", type=Path)
+    parser.add_argument("--scenario", type=Path)
+    parser.add_argument("--authored-scenario", action="store_true")
     args = parser.parse_args()
     if args.command != "import" and (args.manifest is not None or args.dry_run):
         parser.error("Параметры --manifest и --dry-run доступны только для import.")
     if args.command != "report" and (args.date_from is not None or args.date_to is not None):
         parser.error("Параметры периода доступны только для report.")
+    if args.scenario is not None and (args.command not in {"record", "verify-recordings"} or args.authored_input or args.requests):
+        parser.error("--scenario применяется только к record/verify-recordings отдельно от --authored-input/--requests.")
+    if args.authored_scenario and (args.command != "record" or args.scenario is None):
+        parser.error("--authored-scenario требует record --scenario.")
     try:
-        if args.command == "report":
+        if args.scenario is not None:
+            from .scenario_recordings import record_scenario, verify_scenario
+            report = (record_scenario(args.scenario, args.recordings, authored=args.authored_scenario)
+                      if args.command == "record" else verify_scenario(args.scenario, args.recordings))
+            print(json.dumps(report, ensure_ascii=False))
+        elif args.command == "report":
             from .report import build_report
             settings = Settings()
             path = settings.repo_path(settings.app_db_path)

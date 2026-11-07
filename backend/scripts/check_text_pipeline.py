@@ -46,7 +46,7 @@ def setup_database(settings, profile, manifest, *, warm=True):
 def prepare_recordings(folder, *, warm=True):
     settings = Settings(_env_file=None, app_model_mode="replay", app_db_path=folder / "capture.db")
     profile = build_text_profile(settings, model_id="synthetic-text-integration-no-live-model",
-        recording_set_version="text-pipeline-authored-v1", parameters={"temperature": 0})
+        recording_set_version="text-pipeline-authored-v2", parameters={"temperature": 0})
     manifest = (REPO_ROOT / "data/demo/manifest.json").read_bytes()
     repo, _ = setup_database(settings, profile, manifest, warm=warm)
     gateway = AuthoredFixtureGateway(profile)
@@ -54,7 +54,7 @@ def prepare_recordings(folder, *, warm=True):
     try:
         run = wait_run(repo, service.start(RunRequest(date_from=date(2026, 10, 1), date_to=date(2026, 10, 31))).run_id)
         assert run.state == "completed", run.errors
-        assert len(gateway.records) == 8
+        assert len(gateway.records) == (8 if warm else 9)
     finally:
         service.close()
     recordings = folder / "recordings"

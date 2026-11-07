@@ -2,16 +2,187 @@
   "synthetic": true,
   "purpose": "contract_examples_only",
   "examples": [
-    {"schema": "ResolveReviewRequest", "value": {"version": 1, "action": "attach", "author": "Синтетический аналитик", "reason": "Источники проверены", "topic_id": "SYNTHETIC-TOPIC", "topic_versions": {"SYNTHETIC-TOPIC": 3}}},
-    {"schema": "ResolveReviewRequest", "value": {"version": 1, "action": "insufficient_data", "author": "Синтетический аналитик", "reason": "Нужен дополнительный контекст", "topic_versions": {}}},
-    {"schema": "MergePreviewRequest", "value": {"target_topic_id": "SYNTHETIC-TARGET"}},
-    {"schema": "MergeTopicsRequest", "value": {"version": 3, "target_topic_id": "SYNTHETIC-TARGET", "target_version": 2, "author": "Синтетический аналитик", "reason": "Явно объединить темы", "confirm_decision_conflict": true}},
-    {"schema": "MergeResult", "value": {"source_topic_id": "SYNTHETIC-SOURCE-TOPIC", "target_topic_id": "SYNTHETIC-TARGET", "source_version": 5, "target_version": 3}},
-    {"schema": "ExcludeNeedsRequest", "value": {"version": 3, "need_ids": ["SYNTHETIC-NEED"], "author": "Синтетический аналитик", "reason": "Неверная связь"}},
-    {"schema": "ExcludeResult", "value": {"topic_id": "SYNTHETIC-TOPIC", "topic_version": 4, "need_ids": ["SYNTHETIC-NEED"], "review_ids": ["SYNTHETIC-REVIEW"]}},
-    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "linked", "owner": "Синтетический владелец", "reason": "Передано в разработку", "existing_issue_ref": "SYNTHETIC-ISSUE-1"}},
-    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "deferred", "owner": "Синтетический владелец", "reason": "Отложено", "review_after": "2026-11-01"}},
-    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "declined", "owner": "Синтетический владелец", "reason": "Бизнес-решение; это не ошибка анализа"}},
-    {"schema": "DecisionUpdate", "value": {"version": 3, "status": "implemented", "owner": "Синтетический владелец", "reason": "Реализовано", "implemented_at": "2026-10-20T12:00:00+03:00", "implementation_comment": "Синтетический пример результата"}}
+    {
+      "schema": "ResolveReviewRequest",
+      "value": {
+        "version": 1,
+        "action": "attach",
+        "author": "Синтетический аналитик",
+        "reason": "Источники проверены",
+        "topic_id": "SYNTHETIC-TOPIC",
+        "topic_versions": {
+          "SYNTHETIC-TOPIC": 3
+        }
+      }
+    },
+    {
+      "schema": "ResolveReviewRequest",
+      "value": {
+        "version": 1,
+        "action": "insufficient_data",
+        "author": "Синтетический аналитик",
+        "reason": "Нужен дополнительный контекст",
+        "topic_versions": {}
+      }
+    },
+    {
+      "schema": "MergePreviewRequest",
+      "value": {
+        "target_topic_id": "SYNTHETIC-TARGET"
+      }
+    },
+    {
+      "schema": "MergeTopicsRequest",
+      "value": {
+        "version": 3,
+        "target_topic_id": "SYNTHETIC-TARGET",
+        "target_version": 2,
+        "author": "Синтетический аналитик",
+        "reason": "Явно объединить темы",
+        "confirm_decision_conflict": true
+      }
+    },
+    {
+      "schema": "MergeResult",
+      "value": {
+        "source_topic_id": "SYNTHETIC-SOURCE-TOPIC",
+        "target_topic_id": "SYNTHETIC-TARGET",
+        "source_version": 5,
+        "target_version": 3
+      }
+    },
+    {
+      "schema": "ExcludeNeedsRequest",
+      "value": {
+        "version": 3,
+        "need_ids": [
+          "SYNTHETIC-NEED"
+        ],
+        "author": "Синтетический аналитик",
+        "reason": "Неверная связь"
+      }
+    },
+    {
+      "schema": "ExcludeResult",
+      "value": {
+        "topic_id": "SYNTHETIC-TOPIC",
+        "topic_version": 4,
+        "need_ids": [
+          "SYNTHETIC-NEED"
+        ],
+        "review_ids": [
+          "SYNTHETIC-REVIEW"
+        ]
+      }
+    },
+    {
+      "schema": "DecisionUpdate",
+      "value": {
+        "version": 3,
+        "status": "linked",
+        "owner": "Синтетический владелец",
+        "reason": "Передано в разработку",
+        "existing_issue_ref": "SYNTHETIC-ISSUE-1"
+      }
+    },
+    {
+      "schema": "DecisionUpdate",
+      "value": {
+        "version": 3,
+        "status": "deferred",
+        "owner": "Синтетический владелец",
+        "reason": "Отложено",
+        "review_after": "2026-11-01"
+      }
+    },
+    {
+      "schema": "DecisionUpdate",
+      "value": {
+        "version": 3,
+        "status": "declined",
+        "owner": "Синтетический владелец",
+        "reason": "Бизнес-решение; это не ошибка анализа"
+      }
+    },
+    {
+      "schema": "DecisionUpdate",
+      "value": {
+        "version": 3,
+        "status": "implemented",
+        "owner": "Синтетический владелец",
+        "reason": "Реализовано",
+        "implemented_at": "2026-10-20T12:00:00+03:00",
+        "implementation_comment": "Синтетический пример результата"
+      }
+    },
+    {
+      "schema": "PassportFields",
+      "value": {
+        "scenario": "Контакт в оформленной заявке",
+        "need_statement": "Изменить контактный телефон в оформленной заявке",
+        "scope": "Контакт для связи по созданной заявке; смена номера для входа сюда не относится.",
+        "inclusion_examples": [
+          {
+            "text": "Просьба изменить контакт уже оформленной заявки",
+            "evidence_refs": [
+              {
+                "source_id": "DEMO-T001",
+                "fragment_id": "2408c431-3b4c-5fa7-90e5-faa592570e51",
+                "quote": "Нужно изменить контактный телефон в уже оформленной заявке."
+              }
+            ]
+          }
+        ],
+        "exclusion_examples": [],
+        "scope_confirmed": true
+      }
+    },
+    {
+      "schema": "PassportUpdate",
+      "value": {
+        "version": 1,
+        "passport_version": 1,
+        "author": "Synthetic analyst",
+        "reason": "Synthetic evidence review",
+        "passport": {
+          "scenario": "Контакт в оформленной заявке",
+          "need_statement": "Изменить контактный телефон в оформленной заявке",
+          "scope": "Контакт для связи по созданной заявке; смена номера для входа сюда не относится.",
+          "inclusion_examples": [
+            {
+              "text": "Просьба изменить контакт уже оформленной заявки",
+              "evidence_refs": [
+                {
+                  "source_id": "DEMO-T001",
+                  "fragment_id": "2408c431-3b4c-5fa7-90e5-faa592570e51",
+                  "quote": "Нужно изменить контактный телефон в уже оформленной заявке."
+                }
+              ]
+            }
+          ],
+          "exclusion_examples": [],
+          "scope_confirmed": true
+        },
+        "title": "Synthetic confirmed title"
+      }
+    },
+    {
+      "schema": "TopicPeriodStats",
+      "value": {
+        "ticket_count": 1,
+        "requester_count": null,
+        "weekly_counts": {
+          "2026-09-28": 1
+        },
+        "first_seen": "2026-10-01T12:00:00+03:00",
+        "last_seen": "2026-10-01T12:00:00+03:00",
+        "support_level": "single",
+        "new_ticket_count_since_decision": 0,
+        "post_implementation_ticket_count": 0,
+        "review_due": false,
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-01"
+      }
+    }
   ]
 }

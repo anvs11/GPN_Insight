@@ -13,6 +13,7 @@ from .db import connection
 from .coordination import gate_for
 from .errors import RepositoryError
 from .run_storage import RunStorage
+from .clock import now
 from .schemas import (
     DatasetRegistration, ExtractedNeed, Fragment, ImportCounts, ImportLogEntry,
     ImportResult, ManualOverride, NormalizedDocument, RegisteredMaterial,
@@ -34,10 +35,6 @@ def source_content_hash(ticket: TicketInput, materials: dict[str, RegisteredMate
         for a in sorted(ticket.assets, key=lambda a: a.asset_id)
     ]
     return digest(value)
-
-
-def now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class StorageRepository(RunStorage):

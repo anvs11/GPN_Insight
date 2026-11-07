@@ -28,7 +28,7 @@ from ..schemas import (
 )
 from .normalizer import NORMALIZATION_HASH, NORMALIZATION_VERSION, TextNormalizer
 
-INTEGRATION_VERSION = "u2-text-integration-v2"
+INTEGRATION_VERSION = "u2-text-integration-v3"
 
 PROMPT_VERSIONS = {
     "extract_needs": "extract-needs-v1",
@@ -41,7 +41,10 @@ DEFAULT_PROPOSE_PROMPT_PATH = (
     if os.environ.get("APP_PROPOSE_PROMPT_PATH")
     else None
 )
-BUILTIN_ASSIGN_PROMPT_PATH = DEFAULT_ASSIGN_PROMPT_PATH
+
+def _proposal_prompt_path() -> Path:
+    # Один путь используется и для хеша, и для вызова AnalysisService.
+    return DEFAULT_PROPOSE_PROMPT_PATH or DEFAULT_ASSIGN_PROMPT_PATH.with_name("propose.md")
 
 def _prompts() -> dict[str, str]:
     prompts = {
@@ -49,14 +52,9 @@ def _prompts() -> dict[str, str]:
         "assign_topic": DEFAULT_ASSIGN_PROMPT_PATH.read_text(encoding="utf-8"),
     }
 
-    if DEFAULT_PROPOSE_PROMPT_PATH is not None:
-        propose_prompt_path = DEFAULT_PROPOSE_PROMPT_PATH
-    elif DEFAULT_ASSIGN_PROMPT_PATH != BUILTIN_ASSIGN_PROMPT_PATH:
-        propose_prompt_path = DEFAULT_ASSIGN_PROMPT_PATH.parent / "propose.md"
-    else:
-        propose_prompt_path = None
+    propose_prompt_path = _proposal_prompt_path()
 
-    if propose_prompt_path is not None and propose_prompt_path.is_file():
+    if propose_prompt_path.is_file():
         prompts["propose_topic"] = propose_prompt_path.read_text(
             encoding="utf-8"
         )
@@ -429,6 +427,8 @@ def build_text_pipeline(
         profile.model_copy(deep=True),
         settings,
         mode=settings.app_model_mode,
+        assign_prompt_path=DEFAULT_ASSIGN_PROMPT_PATH,
+        propose_prompt_path=_proposal_prompt_path(),
     )
 
     return PipelineAdapters(

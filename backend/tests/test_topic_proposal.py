@@ -189,7 +189,9 @@ def test_proposal_replay_is_exact_and_preserves_old_recording(tmp_path):
     assert request_key(old_request, ExtractedNeeds, old["model_id"], old["normalization_hash"]) == sha256(encoded).hexdigest()
 
 
-def test_missing_proposal_prompt_fails_before_any_gateway_call(settings):
+def test_missing_proposal_prompt_fails_before_any_gateway_call(settings, tmp_path, monkeypatch):
+    import app.ingestion.integration as integration
+    monkeypatch.setattr(integration, "DEFAULT_PROPOSE_PROMPT_PATH", tmp_path / "missing.md")
     profile = build_text_profile(settings, model_id="synthetic", recording_set_version="test")
     assert "propose_topic" not in profile.prompt_hashes
     from app.ingestion.integration import _prompts

@@ -6,7 +6,7 @@ from app.gateways import GatewayResult
 from app.replay import make_record, stable_id
 from app.schemas import (
     BatchAssignment, DatasetRegistration, DecisionUpdate, EvidenceRef, ExtractedNeed,
-    ExtractedNeeds, PassportExample, TicketInput, Topic, TopicPassport,
+    ExtractedNeeds, PassportExample, ProposedTopic, TicketInput, Topic, TopicPassport,
 )
 
 SEED_SOURCE_ID = "SYNTHETIC-TEXT-INTEGRATION-SEED"
@@ -30,7 +30,7 @@ class AuthoredFixtureGateway:
             value = ExtractedNeeds(needs=[ExtractedNeed(need_id="pending", source_id=doc["source_id"],
                 fragment_id=fragment["fragment_id"], evidence_quote=quote, scenario="Изменение контакта заявки",
                 need_type="operational_request", statement="Изменить контактный телефон в оформленной заявке", explicit_request=True)])
-        else:
+        elif request.operation == "assign_topic":
             need = request.data["need"]
             topics = request.data["topics"]
             value = BatchAssignment(decision="match" if topics else "provisional_no_match",
@@ -38,6 +38,13 @@ class AuthoredFixtureGateway:
                 candidate_topic_ids=[topics[0]["topic_id"]] if topics else [],
                 reason="Явно подготовленный синтетический ответ; модель не вызывалась.",
                 evidence_refs=[EvidenceRef(source_id=need["source_id"], fragment_id=need["fragment_id"], quote=need["evidence_quote"])])
+        else:
+            assert request.operation == "propose_topic"
+            need = request.data["need"]
+            ref = EvidenceRef(source_id=need["source_id"], fragment_id=need["fragment_id"], quote=need["evidence_quote"])
+            value = ProposedTopic(title="Синтетическая тема изменения контакта", summary=need["statement"],
+                scenario=need["scenario"], need_statement=need["statement"], scope="Контакт в оформленной заявке",
+                inclusion_examples=[PassportExample(text=need["evidence_quote"], evidence_refs=[ref])])
         record = make_record(request, response_schema, value.model_dump(mode="json"), model_id=self.profile.model_id,
             normalization_hash=self.profile.parameters["normalization_hash"],
             set_version=self.profile.recording_set_version, origin="authored")

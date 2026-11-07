@@ -11,7 +11,8 @@ from fastapi.responses import PlainTextResponse
 from .errors import RepositoryError
 from .schemas import (
     ErrorResponse, ExcludeNeedsRequest, ExcludeResult, MergePreview, MergePreviewRequest,
-    MergeResult, MergeTopicsRequest, ResolveReviewRequest, ReviewItem, RunRequest, TopicChangeEvent,
+    MergeResult, MergeTopicsRequest, PassportUpdate, ResolveReviewRequest, ReviewItem, RunRequest,
+    TopicChangeEvent, TopicDetail, TopicPassport,
 )
 from .workflow import HumanWorkflow
 
@@ -22,6 +23,21 @@ router = APIRouter(prefix="/api/v1", tags=["manual-workflow"], responses={
 def no_query(request: Request) -> None:
     if request.query_params:
         raise RepositoryError("UNSUPPORTED_FILTER", "Операция не принимает query-параметры. Передайте согласованное JSON-тело.", 422)
+
+
+@router.patch("/topics/{topic_id}/passport", response_model=TopicDetail)
+def update_passport(topic_id: str, body: PassportUpdate, request: Request) -> TopicDetail:
+    no_query(request)
+    repo = request.app.state.repository
+    with repo.transaction() as tx:
+        current = tx.get_topic(topic_id, request.app.state.settings.app_model_mode).topic
+        if current.passport.version != body.passport_version:
+            raise RepositoryError("VERSION_CONFLICT", "Паспорт изменён. Перечитайте карточку перед сохранением.")
+        passport = TopicPassport(**body.passport.model_dump(), product_id=current.passport.product_id,
+                                 version=current.passport.version + 1)
+        tx.update_passport(topic_id, passport, expected_version=body.version, author=body.author,
+                           reason=body.reason, title=body.title)
+        return tx.get_topic(topic_id, request.app.state.settings.app_model_mode)
 
 
 def validate_issue_ref(value: str | None, allowed_hosts: str) -> None:

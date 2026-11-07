@@ -1,6 +1,7 @@
 """Один worker на приложение; mode задаёт сервер, активный клик идемпотентен."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from threading import Event, RLock
 from uuid import uuid4
 
@@ -38,7 +39,7 @@ class RunService:
                     coverage=0.0 if sources else None))
                 tx.save_run_inputs(run.run_id, request, self.adapters.profile, sources)
             try:
-                self.futures[run.run_id] = self.executor.submit(self._execute, run.run_id)
+                self.futures[run.run_id] = self.executor.submit(copy_context().run, self._execute, run.run_id)
             except RuntimeError:
                 self.repo.save_run(run.model_copy(update={"state": "failed", "stage": "worker", "finished_at": now(),
                     "failure_code": "WORKER_UNAVAILABLE", "failure_message": "Worker недоступен. Повторите запуск позже."}))

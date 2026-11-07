@@ -1,0 +1,35 @@
+{
+  "synthetic": true,
+  "purpose": "http_filter_examples_only",
+  "examples": [
+    {
+      "query": "status=new&support_level=all&date_from=2026-10-01&date_to=2026-10-01",
+      "expected_topic_ids": [
+        "4bb8ca7e-8605-51d4-a2ba-381314b2f441"
+      ],
+      "period_stats": {
+        "ticket_count": 1,
+        "requester_count": null,
+        "weekly_counts": {
+          "2026-09-28": 1
+        },
+        "first_seen": "2026-10-01T12:00:00+03:00",
+        "last_seen": "2026-10-01T12:00:00+03:00",
+        "support_level": "single",
+        "new_ticket_count_since_decision": 0,
+        "post_implementation_ticket_count": 0,
+        "review_due": false,
+        "date_from": "2026-10-01",
+        "date_to": "2026-10-01"
+      }
+    },
+    {
+      "query": "status=declined",
+      "expected_topic_ids": []
+    },
+    {
+      "query": "date_from=2099-01-01",
+      "expected_topic_ids": []
+    }
+  ]
+}

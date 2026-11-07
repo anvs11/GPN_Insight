@@ -11,6 +11,7 @@ from app.schemas import (
     ExtractedNeed,
     PassportExample,
     ProcessingProfile,
+    ProposedTopic,
     RecordingMeta,
     Topic,
     TopicPassport,
@@ -249,27 +250,57 @@ def test_analysis_service_searches_all_topics_when_retrieval_k_is_one():
     assert result.assignment.search_truncated is False
 
 
-def test_analysis_service_handles_empty_catalog():
+def make_proposal(need):
+    return ProposedTopic(title="Синтетическая первая тема", summary=need.statement,
+        scenario=need.scenario, need_statement=need.statement, scope="Только синтетический пример",
+        inclusion_examples=[PassportExample(text=need.evidence_quote, evidence_refs=[make_evidence(need)])])
+
+
+def test_analysis_service_proposes_first_topic_after_empty_catalog_no_match():
     need = make_need()
     gateway = FakeGateway(
         make_batch_response(
             need,
             decision="provisional_no_match",
             candidate_topic_ids=[],
-        )
+        ),
+        make_proposal(need),
     )
     service = make_service(gateway)
 
     result = service.assign_topic(need, make_snapshot())
 
-    assert result.assignment.decision == "review"
+    assert result.assignment.decision == "new"
+    assert result.proposed_topic == make_proposal(need)
+    assert result.new_topic is None
     assert result.assignment.candidate_set_complete is True
     assert result.assignment.search_truncated is False
     assert result.assignment.total_topic_count == 0
     assert result.assignment.searched_topic_count == 0
     assert result.assignment.passport_versions == {}
-    assert len(gateway.requests) == 1
+    assert len(gateway.requests) == 2 and len(result.metadata) == 2
     assert gateway.requests[0].data["batch_count"] == 1
+    assert gateway.requests[0].data["topics"] == []
+    assert gateway.requests[1].operation == "propose_topic"
+    assert gateway.requests[1].data["passport_versions"] == {}
+
+
+def test_empty_catalog_model_review_does_not_trigger_proposal():
+    gateway = FakeGateway(make_batch_response(decision="review"))
+    result = make_service(gateway).assign_topic(make_need(), make_snapshot())
+    assert result.assignment.decision == "review" and result.proposed_topic is None
+    assert [r.operation for r in gateway.requests] == ["assign_topic"]
+
+
+def test_empty_catalog_proposal_rejects_fabricated_evidence():
+    need = make_need()
+    proposal = make_proposal(need)
+    proposal.inclusion_examples[0].evidence_refs[0].quote = "Выдуманная цитата"
+    gateway = FakeGateway(make_batch_response(need, decision="provisional_no_match"), proposal)
+    from app.gateways import GatewayUnavailable
+    with pytest.raises(GatewayUnavailable) as exc:
+        make_service(gateway).assign_topic(need, make_snapshot())
+    assert exc.value.code == "PROPOSED_TOPIC_EVIDENCE_INVALID"
 
 
 def test_analysis_service_rejects_unknown_candidate_ids():

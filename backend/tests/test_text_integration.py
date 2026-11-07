@@ -171,9 +171,9 @@ def test_full_topic_json_limit_is_checked_before_gateway(settings, document):
     assert exc.value.code == "ANALYSIS_BATCH_TOO_LARGE" and gateway.requests == []
 
 
-def test_empty_catalog_remains_review_without_invented_topic(settings, profile, document):
+def test_empty_catalog_explicit_model_review_is_preserved(settings, profile, document):
     need = payload(document).needs[0]
-    response = BatchAssignment(decision="provisional_no_match", reason="Синтетический пустой каталог",
+    response = BatchAssignment(decision="review", reason="Синтетический пустой каталог требует проверки",
         evidence_refs=[EvidenceRef(source_id=need.source_id, fragment_id=need.fragment_id, quote=need.evidence_quote)])
     gateway = Gateway(profile, [response])
     result = build_text_pipeline(gateway, profile, settings).analysis.assign_topic(need,

@@ -150,7 +150,7 @@ class Pipeline:
                 "profile": profile.model_dump(mode="json"),
             })
 
-        def check_metadata(metadata, operation):
+        def check_metadata(metadata, operation, *, optional_operations=()):
             operations = (
                 (operation,)
                 if isinstance(operation, str)
@@ -180,6 +180,11 @@ class Pipeline:
                 profile.prompt_hashes[op]
                 for op in operations
             }
+            allowed_hashes = expected_hashes | {
+                profile.prompt_hashes[op]
+                for op in optional_operations
+                if op in profile.prompt_hashes
+            }
             actual_hashes = set()
 
             for meta in metadata:
@@ -187,7 +192,7 @@ class Pipeline:
                     meta.model_id != profile.model_id
                     or meta.recording_set_version
                     != profile.recording_set_version
-                    or meta.prompt_hash not in expected_hashes
+                    or meta.prompt_hash not in allowed_hashes
                     or (run.mode == "live" and meta.origin != "model")
                 ):
                     raise RepositoryError(
@@ -199,12 +204,22 @@ class Pipeline:
                 actual_hashes.add(meta.prompt_hash)
                 origins.add(meta.origin)
 
-            if not expected_hashes.issubset(actual_hashes):
+            if len(metadata) < len(operations) or not expected_hashes.issubset(actual_hashes):
                 raise RepositoryError(
                     "ANALYSIS_PROVENANCE_MISSING",
                     "Отсутствуют metadata одной из операций анализа.",
                     422,
                 )
+
+        def check_assignment_metadata(result):
+            # Старый new_topic не вызывал отдельный propose_topic. Его
+            # checkpoint читается без выдумывания отсутствующих metadata.
+            proposal = result.proposed_topic is not None
+            check_metadata(
+                result.metadata,
+                ("assign_topic", "propose_topic") if proposal else ("assign_topic",),
+                optional_operations=("propose_topic",) if result.new_topic is not None else (),
+            )
 
         # Первый проход целиком заканчивается до любого назначения.
         for source in sources:
@@ -410,16 +425,7 @@ class Pipeline:
                             checkpoint
                         )
 
-                        required_operations = (
-                            ("assign_topic", "propose_topic")
-                            if saved_result.assignment.decision == "new"
-                            else ("assign_topic",)
-                        )
-
-                        check_metadata(
-                            saved_result.metadata,
-                            required_operations,
-                        )
+                        check_assignment_metadata(saved_result)
 
                     reused += 1
 
@@ -506,16 +512,7 @@ class Pipeline:
 
                     a = result.assignment
 
-                    required_operations = (
-                        ("assign_topic", "propose_topic")
-                        if a.decision == "new"
-                        else ("assign_topic",)
-                    )
-
-                    check_metadata(
-                        result.metadata,
-                        required_operations,
-                    )
+                    check_assignment_metadata(result)
 
                     actual = {
                         t.topic_id: t.passport.version

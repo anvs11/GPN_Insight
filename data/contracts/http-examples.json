@@ -283,7 +283,8 @@
         "analysis_mode": null,
         "synthetic": true,
         "data_origin": "authored",
-        "pending_source_ids": []
+        "pending_source_ids": [],
+        "period_stats": null
       }
     },
     "source": {
