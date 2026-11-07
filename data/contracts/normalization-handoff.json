@@ -106,7 +106,8 @@
     "normalization_version": "text-pii-v1-proposal",
     "prompt_hashes": {
       "extract_needs": "ee2f4c1b4ab5db1b91e2d154db479a17bcebfbb3ed086f43a359ece931a25608",
-      "assign_topic": "baa34ce6be92dd74dda254ab4165f28330446f4e7d09ebdaf77526ced75a6056"
+      "assign_topic": "baa34ce6be92dd74dda254ab4165f28330446f4e7d09ebdaf77526ced75a6056",
+      "propose_topic": "df0dbdb4c6231d8cff58582f5606b858e964e9309e43b28d0d1986383d3bb315"
     },
     "parameters": {
       "normalization_hash": "731c60015a270661e72a5a1d17c8c07bcce9306582fdec43ec3d226889ecf63a",

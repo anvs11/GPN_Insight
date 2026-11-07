@@ -127,7 +127,6 @@ class PassportExample(Contract):
     text: Text
     evidence_refs: Annotated[list[EvidenceRef], Field(min_length=1)]
 
-
 class TopicPassport(Contract):
     product_id: Identifier = "webneft"
     scenario: Text
@@ -574,8 +573,9 @@ class ProcessingProfile(Contract):
 
     @model_validator(mode="after")
     def required_prompt_hashes(self) -> Self:
-        if not {"extract_needs", "assign_topic"}.issubset(self.prompt_hashes):
-            raise ValueError("Нужны хеши содержимого промптов извлечения и сопоставления")
+        required = {"extract_needs", "assign_topic"}
+        if not required.issubset(self.prompt_hashes):
+            raise ValueError("Нужны хеши обязательных промптов обработки")
         return self
 
 
@@ -591,18 +591,23 @@ class ExtractionResult(Contract):
 
 class AssignmentResult(Contract):
     assignment: TopicAssignment
-    # Сохраняем чтение checkpoints и старых серверных адаптеров.
     new_topic: Topic | None = None
     proposed_topic: ProposedTopic | None = None
     metadata: list[RecordingMeta]
 
     @model_validator(mode="after")
     def new_topic_payload(self) -> Self:
-        payloads = int(self.new_topic is not None) + int(self.proposed_topic is not None)
-        if payloads != int(self.assignment.decision == "new"):
-            raise ValueError("Для new нужен ровно один proposed_topic либо прежний new_topic")
-        return self
+        payloads = (
+            int(self.new_topic is not None)
+            + int(self.proposed_topic is not None)
+        )
 
+        if payloads != int(self.assignment.decision == "new"):
+            raise ValueError(
+                "Для new нужен ровно один proposed_topic либо прежний new_topic"
+            )
+
+        return self
 
 class ResolveReviewRequest(Contract):
     version: Version

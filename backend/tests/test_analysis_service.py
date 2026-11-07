@@ -119,6 +119,7 @@ def make_service(gateway, *, retrieval_k=20, max_chars=16000, max_batches=8):
         prompt_hashes={
             "extract_needs": "a" * 64,
             "assign_topic": "a" * 64,
+            "propose_topic": "c" * 64,
         },
         recording_set_version="test-1",
     )
@@ -215,15 +216,15 @@ def test_analysis_service_preserves_model_review_decision():
     assert result.assignment.matched_topic_id is None
 
 
-def test_analysis_service_forces_review_when_retrieval_is_incomplete():
+def test_analysis_service_searches_all_topics_when_retrieval_k_is_one():
     need = make_need()
     relevant = make_topic(
         "topic-report",
-        "Выгрузка отчета по скважине",
+        "???????? ?????? ?? ????????",
     )
     unrelated = make_topic(
         "topic-map",
-        "Отображение карты месторождения и координат",
+        "??????????? ????? ????????????? ? ?????????",
     )
     gateway = FakeGateway(
         make_batch_response(
@@ -240,12 +241,12 @@ def test_analysis_service_forces_review_when_retrieval_is_incomplete():
         make_snapshot(relevant, unrelated),
     )
 
-    assert result.assignment.decision == "review"
-    assert result.assignment.matched_topic_id is None
-    assert result.assignment.candidate_set_complete is False
-    assert result.assignment.search_truncated is True
-    assert result.assignment.searched_topic_count == 1
+    assert result.assignment.decision == "match"
+    assert result.assignment.matched_topic_id == "topic-report"
+    assert result.assignment.searched_topic_count == 2
     assert result.assignment.total_topic_count == 2
+    assert result.assignment.candidate_set_complete is True
+    assert result.assignment.search_truncated is False
 
 
 def test_analysis_service_handles_empty_catalog():
