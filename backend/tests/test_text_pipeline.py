@@ -18,7 +18,7 @@ def test_real_text_pipeline_import_api_decision_repeat_and_delta(tmp_path):
     assert report["delta_state"] == "completed_with_errors" and report["models_called"] is False
 
 
-def test_real_cold_start_publishes_review_without_fake_new_topic(tmp_path):
+def test_real_cold_start_creates_first_topic_and_matches_remaining_sources(tmp_path):
     folder = tmp_path / "cold"
     folder.mkdir()
     profile, manifest, recordings = prepare_recordings(folder, warm=False)
@@ -30,9 +30,13 @@ def test_real_cold_start_publishes_review_without_fake_new_topic(tmp_path):
         assert response.status_code == 202
         run = wait_run(repo, response.json()["run_id"])
         assert run.state == "completed" and run.origins == ["authored"]
-        assert repo.list_topic_ids(None) == []
+        topic_ids = repo.list_topic_ids(None)
+        assert len(topic_ids) == 1
+        card = client.get("/api/v1/topics/" + topic_ids[0]).json()
+        assert card["stats"]["ticket_count"] == 4 and card["data_origin"] == "authored"
+        assert card["topic"]["status"] == "new" and card["topic"]["owner"] is None
     with sqlite3.connect(repo.path) as db:
-        assert db.execute("SELECT count(*) FROM review_records").fetchone()[0] == 4
+        assert db.execute("SELECT count(*) FROM review_records").fetchone()[0] == 0
         assert db.execute("SELECT count(*) FROM stored_needs").fetchone()[0] == 4
 
 

@@ -1,12 +1,12 @@
 from collections import Counter
-from datetime import timedelta
+from datetime import date, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from .demo import DemoFixture
 from .schemas import (
     CatalogSnapshot, DecisionEvent, DecisionUpdate, EvidenceRef, ExtractedNeed,
-    ManualOverride, ModelMode, Topic, TopicChangeEvent, TopicPassport, TopicDetail, TopicStats,
+    ManualOverride, ModelMode, Topic, TopicChangeEvent, TopicPassport, TopicDetail, TopicStats, TopicPeriodStats,
 )
 from .storage import RepositoryError, StorageRepository, now
 
@@ -112,7 +112,14 @@ class Repository(StorageRepository):
                         source_version=need["source_version"], need_id=need_id, action="attach", topic_id=topic.topic_id,
                         author=manual_author, reason=manual_reason, created_at=now()), expected_versions={topic.topic_id: current.version})
 
-    def get_topic(self, topic_id: str, mode: ModelMode) -> TopicDetail:
+    @staticmethod
+    def _period(date_from, date_to):
+        if date_from and date_to and date_from > date_to:
+            raise RepositoryError("INVALID_PERIOD", "Начало периода позже окончания.", 422)
+
+    def get_topic(self, topic_id: str, mode: ModelMode, *, date_from: date | None = None,
+                  date_to: date | None = None) -> TopicDetail:
+        self._period(date_from, date_to)
         with self.transaction() as tx:
             db = tx._db
             metadata, topic = self._topic(db, topic_id)
@@ -131,6 +138,21 @@ class Repository(StorageRepository):
                 "JOIN source_versions v ON v.product_id=r.product_id AND v.source_id=r.source_id AND v.version=r.current_version "
                 "WHERE l.topic_id=? AND n.source_version<r.current_version AND v.needs_extracted=0 ORDER BY n.source_id", (topic_id,))]
         tickets = [s.ticket for s in sources]
+        stats = self._stats(tickets, topic, history)
+        period_stats = None
+        if date_from is not None or date_to is not None:
+            selected = [ticket for ticket in tickets
+                        if (date_from is None or ticket.created_at.astimezone(ZoneInfo("Europe/Moscow")).date() >= date_from)
+                        and (date_to is None or ticket.created_at.astimezone(ZoneInfo("Europe/Moscow")).date() <= date_to)]
+            period_stats = TopicPeriodStats(**self._stats(selected, topic, history).model_dump(),
+                                           date_from=date_from, date_to=date_to)
+        return TopicDetail(topic=topic, stats=stats, sources=sources, history=history, model_mode=mode,
+                           synthetic=bool(metadata["synthetic"]) or historical_synthetic or any(s.synthetic for s in sources),
+                           data_origin=metadata["origin"], analysis_mode=metadata["analysis_mode"],
+                           pending_source_ids=pending, period_stats=period_stats)
+
+    @staticmethod
+    def _stats(tickets, topic, history) -> TopicStats:
         dates = [t.created_at for t in tickets]
         weekly = Counter()
         for created_at in dates:
@@ -139,7 +161,7 @@ class Repository(StorageRepository):
         requester_ids = [t.requester_id for t in tickets]
         latest = history[-1] if history else None
         implemented = latest.implemented_at if latest and topic.status == "implemented" else None
-        stats = TopicStats(
+        return TopicStats(
             ticket_count=len(tickets), requester_count=len(set(requester_ids)) if tickets and all(requester_ids) else None,
             weekly_counts=dict(sorted(weekly.items())), first_seen=min(dates) if dates else None, last_seen=max(dates) if dates else None,
             support_level="repeated" if len(tickets) >= 2 else "single",
@@ -147,9 +169,28 @@ class Repository(StorageRepository):
             post_implementation_ticket_count=sum(d > implemented for d in dates) if implemented else 0,
             review_due=bool(latest and topic.status == "deferred" and latest.review_after and latest.review_after <= now().astimezone(ZoneInfo("Europe/Moscow")).date()),
         )
-        return TopicDetail(topic=topic, stats=stats, sources=sources, history=history, model_mode=mode,
-                           synthetic=bool(metadata["synthetic"]) or historical_synthetic or any(s.synthetic for s in sources),
-                           data_origin=metadata["origin"], analysis_mode=metadata["analysis_mode"], pending_source_ids=pending)
+
+    def list_topics(self, mode: ModelMode, *, product_id="webneft", support_level="repeated",
+                    status=None, review_due=None, date_from=None, date_to=None) -> list[TopicDetail]:
+        self._period(date_from, date_to)
+        # Один snapshot: решение и счётчик не берутся из разных версий списка.
+        with self.transaction() as tx:
+            ids = [r[0] for r in tx._db.execute("SELECT topic_id FROM topics WHERE product_id=? ORDER BY topic_id", (product_id,))]
+            cards = []
+            for topic_id in ids:
+                card = tx.get_topic(topic_id, mode, date_from=date_from, date_to=date_to)
+                if status is None and card.topic.status == "merged":
+                    continue
+                if status is not None and card.topic.status != status:
+                    continue
+                if support_level not in {None, "all"} and card.stats.support_level != support_level:
+                    continue
+                if review_due is not None and card.stats.review_due != review_due:
+                    continue
+                if card.period_stats is not None and card.period_stats.ticket_count == 0:
+                    continue
+                cards.append(card)
+            return cards
 
     def resolve_topic_id(self, topic_id: str) -> str:
         with self._session() as db:
@@ -211,15 +252,20 @@ class Repository(StorageRepository):
 
     def update_passport(self, topic_id: str, passport: TopicPassport, *, expected_version: int, author: str, reason: str, title: str | None = None) -> None:
         passport = TopicPassport.model_validate(passport.model_dump())
+        if not all(isinstance(value, str) and value.strip() for value in (author, reason)):
+            raise RepositoryError("MANUAL_REASON_REQUIRED", "Изменение паспорта требует автора и причины.", 422)
         with self._session(write=True) as db:
             _, before = self._topic(db, topic_id)
+            if before.status == "merged":
+                raise RepositoryError("TOPIC_MERGED", "Паспорт меняется в основной теме.")
             if type(expected_version) is not int or before.version != expected_version or passport.version != before.passport.version + 1:
                 raise RepositoryError("VERSION_CONFLICT", "Версия темы или паспорта изменилась.")
             if passport.product_id != before.passport.product_id:
                 raise RepositoryError("PRODUCT_MISMATCH", "Продукт паспорта менять нельзя.", 422)
             self._validate_evidence(db, passport.product_id, [r for e in passport.inclusion_examples + passport.exclusion_examples for r in e.evidence_refs])
             after = Topic.model_validate({**before.model_dump(), "passport": passport, "title": title if title is not None else before.title, "version": before.version + 1})
-            db.execute("UPDATE topics SET body_json=? WHERE topic_id=?", (after.model_dump_json(), topic_id))
+            # Содержимое паспорта теперь подтверждено/изменено человеком.
+            db.execute("UPDATE topics SET body_json=?,origin='authored' WHERE topic_id=?", (after.model_dump_json(), topic_id))
             self._change(db, before, after, "passport", author, reason)
             self._bump_catalog(db, passport.product_id)
 

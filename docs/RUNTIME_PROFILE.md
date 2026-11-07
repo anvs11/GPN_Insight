@@ -1,5 +1,9 @@
 # Подключение обычного сервера по утверждённому профилю
 
+После согласованного с U2 cold-start политика text_integration.version увеличена до u2-text-integration-v3. Старые v2-профили не обновляются автоматически: build_text_pipeline отклоняет их как ANALYSIS_PROFILE_INVALID. Для новой политики оператор готовит новый проверенный ProcessingProfile и точный набор с новой recording_set_version. Не удалять старые review/checkpoints и не менять опубликованные записи, чтобы заставить их совпасть. Тестовые генераторы используют отдельные var-каталоги и версии text-pipeline-authored-v2/proposal-binding-authored-v2; эти synthetic model ID/наборы не подставляются в рабочую .env.
+
+Актуализация 2026-11-07: реальный backend/prompts/propose.md теперь включён в build_text_profile по умолчанию. Хеш и путь совпадают с промптом, который читает AnalysisService. Прежний профиль с двумя prompt hashes не дополняется автоматически: обычная сборка явно откажет с ANALYSIS_PROFILE_CONFLICT, пока оператор не подготовит новый проверенный профиль/точные replay-записи с новой recording_set_version. Не перезаписывать рабочие записи или базу. Совместимость legacy new_topic checkpoint сохраняется при прежнем точном профиле на уровне Pipeline; это не разрешение молча менять bootstrap-профиль или хеши. Проверочный новый профиль и SQLite создавались только в var. Следующее описание конфигурации 2026-11-06 является историческим, рабочая .env в этом исправлении не читалась в отчёт и не менялась.
+
 2026-11-06. app.main:app использует существующую app.gateways.text_gateway(settings), затем read-only bootstrap, build_text_profile и build_text_pipeline. AuthoredFixtureGateway/TestComponents в обычный сервер не подключаются. Общие DTO, source hash, SQL/guard, алгоритмы U2 и правила обработки не менялись. Незавершённый HTTP/CLI-срез этой же рабочей ветки сохранён.
 
 ## Фактическая конфигурация этой сессии

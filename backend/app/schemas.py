@@ -365,6 +365,29 @@ class TopicStats(Contract):
     review_due: bool
 
 
+class TopicPeriodStats(TopicStats):
+    date_from: date | None = None
+    date_to: date | None = None
+
+
+class PassportFields(Contract):
+    scenario: Text
+    need_statement: Text
+    scope: Text
+    inclusion_examples: Annotated[list[PassportExample], Field(min_length=1)]
+    exclusion_examples: list[PassportExample] = Field(default_factory=list)
+    scope_confirmed: Annotated[bool, Field(strict=True)]
+
+
+class PassportUpdate(Contract):
+    version: Version
+    passport_version: Version
+    author: Text
+    reason: Text
+    passport: PassportFields
+    title: Text | None = None
+
+
 class SourceDetail(Contract):
     ticket: TicketInput
     document: NormalizedDocument | None
@@ -386,6 +409,7 @@ class TopicDetail(Contract):
     synthetic: bool = True
     data_origin: Origin = "authored"
     pending_source_ids: list[Identifier] = Field(default_factory=list)
+    period_stats: TopicPeriodStats | None = None
 
 
 class RecordingMeta(Contract):

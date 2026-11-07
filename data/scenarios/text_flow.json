@@ -1,0 +1,83 @@
+{
+  "format": 1,
+  "scenario_id": "synthetic-server-text-flow-v1",
+  "synthetic": true,
+  "clock": "2026-11-07T12:00:00Z",
+  "initial_state": "initial_state.json",
+  "initial_state_hash": "e9e187c2405ef019222d132ee47f31f0ad354ea3ff5f81e800f0ae4b1bd06945",
+  "recording_set_version": "scenario-text-authored-v1",
+  "model_id": "synthetic-scenario-no-live-model",
+  "actions": [
+    "base",
+    "decision",
+    "passport",
+    "repeat",
+    "delta",
+    "review",
+    "exclude",
+    "merge",
+    "restart"
+  ],
+  "base": [
+    {
+      "source_id": "FLOW-001",
+      "created_at": "2026-10-01T12:00:00+03:00",
+      "text": "Synthetic request. Export a prepared report. Save a custom report filter."
+    },
+    {
+      "source_id": "FLOW-002",
+      "created_at": "2026-10-02T12:00:00+03:00",
+      "text": "Synthetic request. Export a prepared report."
+    },
+    {
+      "source_id": "FLOW-003",
+      "created_at": "2026-10-03T12:00:00+03:00",
+      "text": "Synthetic request. Change the number, login fails."
+    }
+  ],
+  "delta": {
+    "source_id": "FLOW-004",
+    "created_at": "2026-10-04T12:00:00+03:00",
+    "text": "Synthetic request. Export a prepared report."
+  },
+  "authored_needs": {
+    "FLOW-001": [
+      {
+        "label": "export",
+        "quote": "Export a prepared report.",
+        "statement": "Export a prepared report.",
+        "scenario": "Synthetic reporting"
+      },
+      {
+        "label": "filters",
+        "quote": "Save a custom report filter.",
+        "statement": "Save a custom report filter.",
+        "scenario": "Synthetic reporting"
+      }
+    ],
+    "FLOW-002": [
+      {
+        "label": "export",
+        "quote": "Export a prepared report.",
+        "statement": "Export a prepared report.",
+        "scenario": "Synthetic reporting"
+      }
+    ],
+    "FLOW-003": [
+      {
+        "label": "review",
+        "quote": "Change the number, login fails.",
+        "statement": "Clarify the number change.",
+        "scenario": "Synthetic ambiguous request"
+      }
+    ],
+    "FLOW-004": [
+      {
+        "label": "export",
+        "quote": "Export a prepared report.",
+        "statement": "Export a prepared report.",
+        "scenario": "Synthetic reporting"
+      }
+    ]
+  }
+}

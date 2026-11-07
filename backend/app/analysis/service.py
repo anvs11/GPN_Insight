@@ -216,11 +216,9 @@ class AnalysisService:
             matched_id = next(iter(matched_ids))
             decision_name = "match"
 
-        # provisional_no_match не превращаем в new: для new требуется
-        # отдельный согласованный ProposedTopic и его replay-контракт.
-        # Неполный поиск и отсутствие однозначного совпадения ведут на review.
-        # Новая тема допустима только после полного поиска по каталогу,
-        # если ни один пакет не обнаружил кандидатов или совпадений.
+        # Для пустого каталога тоже нужен явный provisional_no_match,
+        # затем отдельный проверенный ProposedTopic. Review и неполный
+        # поиск не разрешают создание темы.
         all_provisional_no_match = (
             complete
             and not ambiguous
@@ -233,7 +231,7 @@ class AnalysisService:
             )
         )
 
-        if all_provisional_no_match and topic_passports.topics:
+        if all_provisional_no_match:
             propose_prompt = self.propose_prompt_path.read_text(encoding="utf-8")
             proposal_response = self.gateway.generate(
                 TextRequest(

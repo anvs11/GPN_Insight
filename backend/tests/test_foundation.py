@@ -214,7 +214,7 @@ def test_version_requires_json_integer(settings, fixture, version):
 def test_unsupported_filters_do_not_return_unfiltered_success(settings, fixture):
     seed(settings, fixture)
     with TestClient(create_app(settings), base_url="http://127.0.0.1") as client:
-        response = client.get("/api/v1/topics?status=declined")
+        response = client.get("/api/v1/topics?unknown_filter=declined")
         assert response.status_code == 422
         assert response.json()["code"] == "UNSUPPORTED_FILTER"
 
