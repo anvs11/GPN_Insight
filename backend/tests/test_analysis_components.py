@@ -95,7 +95,7 @@ def test_retriever_ranks_relevant_topic_first():
     assert result.candidate_set_complete is True
 
 
-def test_retriever_marks_truncated_catalog_incomplete():
+def test_retriever_searches_all_topics_regardless_of_k():
     topics = [
         make_topic(f"topic-{index}", f"Описание темы номер {index}")
         for index in range(5)
@@ -106,9 +106,10 @@ def test_retriever_marks_truncated_catalog_incomplete():
         make_snapshot(*topics),
     )
 
-    assert len(result.candidates) == 2
-    assert result.searched_topic_count == 2
-    assert result.candidate_set_complete is False
+    assert len(result.candidates) == 5
+    assert result.total_topic_count == 5
+    assert result.searched_topic_count == 5
+    assert result.candidate_set_complete is True
 
 
 def test_retriever_handles_empty_catalog():

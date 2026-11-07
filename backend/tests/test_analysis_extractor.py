@@ -46,6 +46,7 @@ def make_profile() -> ProcessingProfile:
         prompt_hashes={
             "extract_needs": "b" * 64,
             "assign_topic": "d" * 64,
+            "propose_topic": "c" * 64,
         },
         parameters={},
         recording_set_version="test-set",

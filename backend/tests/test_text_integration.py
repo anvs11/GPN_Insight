@@ -1,6 +1,7 @@
 import pytest
 
 from app.config import Settings
+from app.analysis.extractor import NeedExtractor
 from app.gateways import GatewayResult, GatewayUnavailable
 from app.ingestion.integration import build_text_pipeline, build_text_profile
 from app.replay import ReplayGateway, make_record
@@ -177,7 +178,7 @@ def test_empty_catalog_remains_review_without_invented_topic(settings, profile, 
     gateway = Gateway(profile, [response])
     result = build_text_pipeline(gateway, profile, settings).analysis.assign_topic(need,
         CatalogSnapshot(product_id="webneft", catalog_revision=0, topics=[]))
-    assert result.assignment.decision == "review" and result.new_topic is None
+    assert result.assignment.decision == "review" and result.proposed_topic is None
     assert result.assignment.candidate_set_complete and len(result.metadata) == 1
 
 
@@ -214,3 +215,36 @@ def test_profile_builder_does_not_accept_ambiguous_or_reserved_parameters(settin
     with pytest.raises(GatewayUnavailable) as exc:
         build_text_profile(settings, model_id="synthetic", recording_set_version="test-v1", parameters=parameters)
     assert exc.value.code == "ANALYSIS_PROFILE_INVALID"
+
+def test_need_extractor_accepts_valid_evidence(profile, document):
+    value = payload(document)
+    gateway = Gateway(profile, [value])
+
+    result = NeedExtractor(gateway, profile).extract(document)
+
+    assert len(result.needs) == len(value.needs)
+    assert all(need.need_id == "pending" for need in result.needs)
+    assert len(result.metadata) == 1
+
+
+@pytest.mark.parametrize(
+    ("field", "error_code"),
+    [
+        ("source_id", "EXTRACTION_REFERENCE_INVALID"),
+        ("fragment_id", "EXTRACTION_REFERENCE_INVALID"),
+        ("evidence_quote", "EXTRACTION_QUOTE_INVALID"),
+    ],
+)
+def test_need_extractor_rejects_forged_evidence(
+    profile, document, field, error_code
+):
+    value = payload(document)
+    setattr(value.needs[0], field, "synthetic-forged")
+
+    gateway = Gateway(profile, [value])
+
+    with pytest.raises(GatewayUnavailable) as exc:
+        NeedExtractor(gateway, profile).extract(document)
+
+    assert exc.value.code == error_code
+

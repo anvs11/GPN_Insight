@@ -1,8 +1,9 @@
+
 """Извлечение пользовательских потребностей из нормализованного документа."""
 
 from pathlib import Path
 
-from ..gateways import TextGateway, TextRequest
+from ..gateways import GatewayUnavailable, TextGateway, TextRequest
 from ..schemas import (
     ExtractedNeeds,
     ExtractionResult,
@@ -17,7 +18,7 @@ DEFAULT_PROMPT_PATH = (
 
 
 class NeedExtractor:
-    """Извлекает потребности через общий интерфейс текстового шлюза."""
+    """Извлекает потребности и проверяет их связь с исходным документом."""
 
     def __init__(
         self,
@@ -44,9 +45,38 @@ class NeedExtractor:
 
         result = self.gateway.generate(request, ExtractedNeeds)
 
+        # Проверяем, что каждая потребность ссылается на реальные
+        # фрагменты именно переданного нормализованного документа.
+        fragments = {
+            fragment.fragment_id: fragment
+            for fragment in document.fragments
+        }
+
+        for need in result.value.needs:
+            if need.source_id != document.source_id:
+                raise GatewayUnavailable(
+                    "EXTRACTION_REFERENCE_INVALID",
+                    "Потребность ссылается на другой source_id.",
+                )
+
+            fragment = fragments.get(need.fragment_id)
+            if fragment is None:
+                raise GatewayUnavailable(
+                    "EXTRACTION_REFERENCE_INVALID",
+                    "Потребность ссылается на неизвестный fragment_id.",
+                )
+
+            if (
+                not need.evidence_quote
+                or need.evidence_quote not in fragment.text
+            ):
+                raise GatewayUnavailable(
+                    "EXTRACTION_QUOTE_INVALID",
+                    "Цитата потребности отсутствует в указанном фрагменте.",
+                )
+
         # Стабильные need_id назначает Pipeline.
-        # Текущая модельная схема требует это поле, поэтому используем
-        # временный placeholder, который Pipeline затем перезапишет.
+        # До этого используем временный placeholder.
         needs = [
             need.model_copy(update={"need_id": "pending"})
             for need in result.value.needs

@@ -58,6 +58,14 @@ def test_two_pass_order_reuse_and_decisions_after_reopen(settings, fixture):
         response = client.post("/api/v1/runs", json={})
         assert response.status_code == 202 and response.json()["mode"] == "replay"
         run = wait_run(repo, response.json()["run_id"])
+        print("\nRUN:", run.model_dump())
+        print(
+            "\nREPO METHODS:",
+            [
+                name for name in dir(repo)
+                if any(word in name.lower() for word in ("material", "event", "error", "step"))
+            ],
+        )
         assert run.state == "completed" and run.successful_materials == 2 and run.coverage == 1
         assert run.origins == ["authored"] and run.completed_steps == 6
         assert adapter.events == [(s, i) for i in [fixture.sources[0].source_id, fixture.sources[1].source_id] for s in ("normalize", "extract")] + [
@@ -267,7 +275,15 @@ def test_empty_success_and_extraction_error_are_distinct(settings, fixture):
 def test_prompt_fingerprint_cannot_claim_different_actual_prompt(settings, fixture):
     repo = setup(settings, fixture, 1)
     adapter = TestComponents()
-    adapter.profile = adapter.profile.model_copy(update={"prompt_hashes": {"extract_needs": "c" * 64, "assign_topic": "a" * 64}})
+    adapter.profile = adapter.profile.model_copy(
+        update={
+            "prompt_hashes": {
+                "extract_needs": "c" * 64,
+                "assign_topic": "a" * 64,
+                "propose_topic": "c" * 64,
+            }
+        }
+    )
     service = RunService(repo, "replay", adapter.adapters())
     try:
         run = wait_run(repo, service.start(RunRequest()).run_id)

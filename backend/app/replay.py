@@ -10,10 +10,27 @@ from uuid import UUID, uuid4, uuid5
 from pydantic import ValidationError
 
 from .gateways import GatewayResult, GatewayUnavailable, TextGateway, TextRequest
-from .schemas import BatchAssignment, Contract, ExtractedNeeds, ProposedTopic, RecordingMeta, Sha256, Text
+from .schemas import (
+    BatchAssignment,
+    Contract,
+    ExtractedNeeds,
+    ProposedTopic,
+    RecordingMeta,
+    Sha256,
+    Text,
+)
 
-RESPONSE_SCHEMAS = {"extract_needs": ExtractedNeeds, "assign_topic": BatchAssignment, "propose_topic": ProposedTopic}
-SCHEMAS = {s.__name__: s for s in RESPONSE_SCHEMAS.values()}
+RESPONSE_SCHEMAS = {
+    "extract_needs": ExtractedNeeds,
+    "assign_topic": BatchAssignment,
+    "propose_topic": ProposedTopic,
+}
+
+SCHEMAS = {
+    schema.__name__: schema
+    for schema in RESPONSE_SCHEMAS.values()
+}
+
 NAMESPACE = UUID("4ca17d64-e9aa-529a-8fa4-7d5bd760f4aa")
 
 
@@ -44,14 +61,42 @@ class TextRecording(Contract):
 
 def validate_record(record: TextRecording):
     schema = SCHEMAS.get(record.schema_name)
-    expected = RESPONSE_SCHEMAS[record.request.operation]
-    if schema is not expected or semantic_hash(schema.model_json_schema()) != record.schema_hash:
-        raise GatewayUnavailable("REPLAY_SCHEMA_MISMATCH", "Схема записи изменилась. Пересоздайте проверенный набор.")
+    expected = RESPONSE_SCHEMAS.get(record.request.operation)
+
+    if expected is None:
+        raise GatewayUnavailable(
+            "REPLAY_OPERATION_UNSUPPORTED",
+            "Неизвестная операция в записи replay.",
+        )
+
+    if (
+        schema is not expected
+        or semantic_hash(schema.model_json_schema()) != record.schema_hash
+    ):
+        raise GatewayUnavailable(
+            "REPLAY_SCHEMA_MISMATCH",
+            "Схема записи изменилась. Пересоздайте проверенный набор.",
+        )
+
     meta = record.metadata
-    if (meta.request_hash != request_key(record.request, schema, meta.model_id, meta.normalization_hash) or
-        meta.prompt_hash != hashlib.sha256(record.request.prompt.encode("utf-8")).hexdigest() or
-        meta.parameters != record.request.parameters):
-        raise GatewayUnavailable("REPLAY_RECORD_INVALID", "Хеши или параметры записи не совпадают. Проверьте набор.")
+
+    if (
+        meta.request_hash
+        != request_key(
+            record.request,
+            schema,
+            meta.model_id,
+            meta.normalization_hash,
+        )
+        or meta.prompt_hash
+        != hashlib.sha256(record.request.prompt.encode("utf-8")).hexdigest()
+        or meta.parameters != record.request.parameters
+    ):
+        raise GatewayUnavailable(
+            "REPLAY_RECORD_INVALID",
+            "Хеши или параметры записи не совпадают. Проверьте набор.",
+        )
+
     value = schema.model_validate(record.response)
     canonical(value.model_dump(mode="json"))
     return value
