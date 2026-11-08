@@ -23,6 +23,19 @@ function isExamples(value: unknown) {
     Array.isArray(item.evidence_refs) && item.evidence_refs.every(isEvidence))
 }
 
+function isPeriodStats(value: unknown) {
+  if (value === null) return true
+  return isObject(value) && isCount(value.ticket_count) &&
+    (value.requester_count === null || isCount(value.requester_count)) &&
+    (value.support_level === 'single' || value.support_level === 'repeated') &&
+    isObject(value.weekly_counts) && Object.values(value.weekly_counts).every(isCount) &&
+    isNullableDate(value.first_seen) && isNullableDate(value.last_seen) &&
+    isCount(value.new_ticket_count_since_decision) && isCount(value.post_implementation_ticket_count) &&
+    typeof value.review_due === 'boolean' &&
+    (value.date_from === null || (typeof value.date_from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.date_from) && isDate(value.date_from))) &&
+    (value.date_to === null || (typeof value.date_to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.date_to) && isDate(value.date_to)))
+}
+
 export function isTopicListItem(value: unknown): value is TopicListItem {
   if (!isObject(value) || !isObject(value.topic) || !isObject(value.stats)) return false
   const topic = value.topic
@@ -35,7 +48,7 @@ export function isTopicListItem(value: unknown): value is TopicListItem {
     (value.model_mode === 'live' || value.model_mode === 'replay') &&
     (value.analysis_mode === null || value.analysis_mode === 'live' || value.analysis_mode === 'replay') &&
     typeof value.synthetic === 'boolean' && (value.data_origin === 'model' || value.data_origin === 'authored') &&
-    isStrings(value.pending_source_ids)
+    isStrings(value.pending_source_ids) && isPeriodStats(value.period_stats)
 }
 
 export function isSourceDetail(value: unknown): value is SourceDetail {

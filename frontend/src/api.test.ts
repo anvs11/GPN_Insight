@@ -154,3 +154,49 @@ describe('HTTP-контракт обработки', () => {
     await result
   })
 })
+
+describe('Фильтры тем и статистика периода', () => {
+  const period = { ...topicDetail.stats, ticket_count: 1, requester_count: null,
+    date_from: '2026-11-01', date_to: '2026-11-01' }
+
+  it('передаёт только поддерживаемые query-параметры, без режима и тела', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats: period }])))
+    vi.stubGlobal('fetch', fetchMock)
+    const filters = { status: 'needs_research' as const, support_level: 'all' as const,
+      date_from: period.date_from, date_to: period.date_to }
+    const result = await api.topics(undefined, filters)
+    const url = new URL(fetchMock.mock.calls[0][0], 'http://localhost')
+    expect(Object.fromEntries(url.searchParams)).toEqual(filters)
+    expect(result[0].stats.ticket_count).toBe(4)
+    expect(result[0].period_stats?.ticket_count).toBe(1)
+    expect(fetchMock.mock.calls[0][1].body).toBeUndefined()
+  })
+
+  it.each(['date_from', 'date_to'] as const)('поддерживает одну границу %s', async field => {
+    const bounds = { date_from: null, date_to: null, [field]: '2026-11-01' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats: { ...period, ...bounds } }]))))
+    const result = await api.topics(undefined, { [field]: '2026-11-01' })
+    expect(result[0].period_stats?.[field]).toBe('2026-11-01')
+  })
+
+  it.each([
+    null,
+    { ...period, ticket_count: -1 },
+    { ...period, requester_count: 'unknown' },
+    { ...period, date_from: '2026-10-01' },
+    { ...period, weekly_counts: null },
+  ])('не публикует неверную или чужую статистику периода: %j', async period_stats => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats }]))))
+    await expect(api.topics(undefined, { date_from: '2026-11-01', date_to: '2026-11-01' })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
+  it('отклоняет неожиданную статистику периода при запросе за всё время', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats: period }]))))
+    await expect(api.topics()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
+  it('показывает серверный 422 без замены пустым списком', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 'INVALID_PERIOD', message: 'Неверный период.' }), { status: 422 })))
+    await expect(api.topics(undefined, { date_from: '2026-11-02', date_to: '2026-11-01' })).rejects.toMatchObject({ status: 422, code: 'INVALID_PERIOD' })
+  })
+})

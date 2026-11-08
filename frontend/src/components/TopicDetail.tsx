@@ -76,6 +76,7 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
       {detail.synthetic && <p className="topic-notice"><strong>Синтетические демонстрационные данные — не статистика компании.</strong></p>}
       <p>Происхождение: {detail.data_origin === 'authored' ? 'подготовлено вручную (authored)' : 'ответ модели (model)'}.
         {' '}Режим сервера: <strong>{detail.model_mode}</strong>. {detail.analysis_mode === null ? 'Результат модельного анализа не подтверждён.' : `Режим анализа: ${detail.analysis_mode}${detail.analysis_mode === 'replay' ? ' — сохранённые ответы' : ''}.`}</p>
+      <p>Показатели и источники карточки — за всё время. Период списка их не ограничивает.</p>
       <dl className="topic-detail-stats">
         <div><dt>ID темы</dt><dd>{detail.topic.topic_id}</dd></div>
         <div><dt>Статус</dt><dd>{topicStatusLabels[detail.topic.status]}</dd></div>

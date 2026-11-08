@@ -65,9 +65,34 @@ export interface Run {
 
 export type TopicStatus = 'new' | 'needs_research' | 'linked' | 'deferred' | 'declined' | 'implemented' | 'merged'
 
+export interface TopicFilters {
+  status?: TopicStatus
+  support_level?: 'single' | 'repeated' | 'all'
+  date_from?: string
+  date_to?: string
+}
+
+export interface TopicStats {
+  ticket_count: number
+  requester_count: number | null
+  weekly_counts: Record<string, number>
+  first_seen: string | null
+  last_seen: string | null
+  support_level: 'single' | 'repeated'
+  new_ticket_count_since_decision: number
+  post_implementation_ticket_count: number
+  review_due: boolean
+}
+
+export interface TopicPeriodStats extends TopicStats {
+  date_from: string | null
+  date_to: string | null
+}
+
 // Проекция TopicDetail из GET /topics: только поля, которые читает список.
 // Сервер также возвращает паспорт, источники и историю; это не новый HTTP-формат.
 export interface TopicListItem {
+  period_stats: TopicPeriodStats | null
   topic: {
     topic_id: string
     title: string
@@ -183,7 +208,7 @@ export interface DecisionEvent {
 }
 
 // Поля DecisionUpdate, используемые текущей формой. Остальные поля DTO
-// необязательны; HTTP пока разрешает только эти два целевых статуса.
+// необязательны; текущий UI сохраняет только эти два целевых статуса.
 export interface DecisionUpdate {
   status: 'new' | 'needs_research'
   owner: string
@@ -200,14 +225,7 @@ export interface TopicDetail extends TopicListItem {
     version: number
     canonical_topic_id: string | null
   }
-  stats: TopicListItem['stats'] & {
-    weekly_counts: Record<string, number>
-    first_seen: string | null
-    last_seen: string | null
-    new_ticket_count_since_decision: number
-    post_implementation_ticket_count: number
-    review_due: boolean
-  }
+  stats: TopicStats
   sources: SourceDetail[]
   history: DecisionEvent[]
 }
