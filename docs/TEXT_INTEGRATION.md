@@ -45,7 +45,7 @@ Gateway получает копию реального TextRequest из Analysis
 
 ## Синтетический пример и проверенные результаты
 
-data/contracts/normalization-handoff.json — новый явно synthetic/authored пример U1. Он использует реальные хеши extract-needs-v1/assign-topic-v1, текущий normalization_hash и полный profile.parameters новой сборки. Локальный исходный пример в старой рабочей копии не переписан. Старые контрактные JSON/replay клона сохранены; для новой интеграции нужны точные новые записи с новой recording_set_version.
+Текущий явно synthetic/authored пример — data/contracts/normalization-handoff-v2.json: реальные хеши extract/assign/propose, текущие normalization_hash и policy v3, новая recording_set_version. Старый normalization-handoff.json сохранён как legacy; его policy v1 не подходит общей сборке. Ручной scripts.check_text_normalizer обновлён на v2 и реально пройден на Windows 08.11.2026. Старые записи/профили не переписываются, автоматического обновления при запуске нет; подробности в MEDIA_RUNTIME.md.
 
 На macOS/Python 3.13.0 выполнены 369 backend-тестов, одно прежнее предупреждение Starlette/AnyIO. Старые 18 тестов и все 14 файлов PR #7 сохранены. Пройдены 16 общих/7 HTTP-примеров, pip check и ручные процедуры preview/import/normalizer/pipeline. Windows, живая Qwen и браузерный путь в этой задаче не запускались. Никакие опубликованные записи/решения/рабочая БД не заменялись.
 

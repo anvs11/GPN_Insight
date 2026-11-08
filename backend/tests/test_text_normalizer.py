@@ -81,8 +81,9 @@ def test_recipe_hash_and_profile_match_implemented_rules(profile):
     assert semantic_hash(normalization_recipe()) == NORMALIZATION_HASH
 
 
-def test_published_synthetic_handoff_matches_the_real_normalizer():
-    example = json.loads((REPO_ROOT / "data/contracts/normalization-handoff.json").read_text(encoding="utf-8"))
+@pytest.mark.parametrize("filename", ["normalization-handoff.json", "normalization-handoff-v2.json"])
+def test_published_synthetic_handoff_matches_the_real_normalizer(filename):
+    example = json.loads((REPO_ROOT / "data/contracts" / filename).read_text(encoding="utf-8"))
     assert example["synthetic"] is True and example["origin"] == "authored"
     assert example["normalization_recipe"] == normalization_recipe()
     assert semantic_hash(example["normalization_recipe"]) == example["normalization_hash"] == NORMALIZATION_HASH
@@ -97,6 +98,24 @@ def test_published_synthetic_handoff_matches_the_real_normalizer():
     response = ExtractedNeeds.model_validate(example["extraction_response"])
     assert response.needs[0].fragment_id == pipeline_document.fragments[0].fragment_id
     assert response.needs[0].evidence_quote in pipeline_document.fragments[0].text
+
+
+def test_current_handoff_profile_uses_actual_integration_and_legacy_is_not_upgraded():
+    from app.ingestion.integration import build_text_profile, build_text_pipeline
+    from app.gateways import GatewayUnavailable
+    from app.replay import ReplayGateway
+    settings = Settings(_env_file=None)
+    current = json.loads((REPO_ROOT / "data/contracts/normalization-handoff-v2.json").read_text(encoding="utf-8"))
+    profile = ProcessingProfile.model_validate(current["profile"])
+    assert profile == build_text_profile(settings, model_id=profile.model_id,
+        recording_set_version=profile.recording_set_version,
+        parameters={k: v for k, v in profile.parameters.items() if k not in {"normalization_hash", "text_integration"}})
+    legacy = json.loads((REPO_ROOT / "data/contracts/normalization-handoff.json").read_text(encoding="utf-8"))
+    assert legacy["profile"]["recording_set_version"] != profile.recording_set_version
+    old_profile = ProcessingProfile.model_validate(legacy["profile"])
+    with pytest.raises(GatewayUnavailable) as exc:
+        build_text_pipeline(ReplayGateway(REPO_ROOT / "var/unused-handoff-recordings", old_profile.model_id, NORMALIZATION_HASH), old_profile, settings)
+    assert exc.value.code == "ANALYSIS_PROFILE_INVALID"
 
 
 @pytest.mark.parametrize("kind", ["version", "hash", "missing-hash", "legacy-example", "previous-implementation", "not-profile"])

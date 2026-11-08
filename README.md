@@ -1,6 +1,8 @@
 # GPN Insight
 
-Передача U2/U4 (07.11.2026): [контракт media-источников, metadata и provenance](docs/MEDIA_ANALYSIS_HANDOFF.md), [статус API в main и локального media-расширения](docs/U1_MEDIA_HANDOFF.md). Текстовые preview/commit/history уже в проверенной GitHub main `60eedf3`; media import ещё локальный. Из `backend/`: `../.venv/bin/python -X utf8 -m scripts.check_media_handoff` проверяет четыре authored примера без моделей и БД.
+Состояние на 08.11.2026: PR #12 (медиаимпорт U1) и #13 (фильтры/редактор паспорта U4) объединены в main `6f3b8df`. Серверная подготовка постоянных медиа, Windows-проверки, новый handoff v2 и команды — [MEDIA_RUNTIME.md](docs/MEDIA_RUNTIME.md). Старые этапные статусы ниже исторические; resolver не включает ASR/VL или media pipeline.
+
+Передача U2/U4: [контракт media-источников, metadata и provenance](docs/MEDIA_ANALYSIS_HANDOFF.md), [передача импорта U1](docs/U1_MEDIA_HANDOFF.md). Текстовый и media import уже в main. Из `backend/`: `../.venv/bin/python -X utf8 -m scripts.check_media_handoff` проверяет четыре authored примера без моделей и БД.
 
 Проверка перед передачей: [команды для терминала, ручной curl/CLI и ожидаемые ответы](docs/MEDIA_IMPORT_CHECK.md). После ревью полный backend: 652 passed/1 прежний warning; ошибки повреждённых служебных JSON возвращаются безопасно, данные/решения сохранены.
 

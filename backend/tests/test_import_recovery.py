@@ -107,7 +107,7 @@ def test_readonly_recovery_and_missing_registry_never_remove_staging(media_conte
 
 
 @pytest.mark.parametrize("kind", ["malformed", "foreign-owner", "escape", "symlink", "unknown-file"])
-def test_ambiguous_journals_are_preserved(media_context, kind):
+def test_ambiguous_journals_are_preserved(media_context, kind, create_symlink):
     settings, repo = media_context
     with open_import_workspace(settings, repo, dry_run=False) as workspace:
         upload = workspace.stage_stream("call.wav", BytesIO(wav_bytes()))
@@ -123,7 +123,7 @@ def test_ambiguous_journals_are_preserved(media_context, kind):
         journal.write_text(json.dumps(value))
     elif kind == "symlink":
         journal.unlink()
-        journal.symlink_to(repo.path)
+        create_symlink(journal, repo.path)
     else: (workspace.folder / "unknown.txt").write_text("Preserve")
     db_before = repo.path.read_bytes()
     assert reconcile_import_storage(repo, settings).issues

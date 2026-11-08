@@ -162,6 +162,7 @@ class ImportWorkspace:
         self.sizes: dict[Path, int] = {}
         self.file_limits: dict[Path, int] = {}
         self.fingerprints: dict[Path, tuple] = {}
+        self.upload_hashes = {}
         self.planned: list[dict] = []
         self.directory_identity: list[int] | None = None
         try:
@@ -196,6 +197,7 @@ class ImportWorkspace:
         self.handles.append(stream)
         self.uploads.append(upload)
         self.sizes[upload.temporary_path] = 0
+        self.upload_hashes[upload.temporary_path] = sha256()
         self.file_limits[upload.temporary_path] = (MAX_IMAGE_BYTES if Path(filename).suffix.lower() in {".png", ".jpg", ".jpeg"} else MAX_AUDIO_BYTES)
         return upload, stream
 
@@ -205,6 +207,7 @@ class ImportWorkspace:
         if size > self.file_limits[upload.temporary_path] or self.total_bytes + len(data) > MAX_MEDIA_BYTES:
             raise invalid("MEDIA_FILE_TOO_LARGE", "Превышен предел 10 МиБ на аудио, 5 МиБ на изображение или 50 МиБ на все вложения.", 413)
         stream.write(data)
+        self.upload_hashes[upload.temporary_path].update(data)
         self.sizes[upload.temporary_path] = size
         self.total_bytes += len(data)
 
@@ -231,6 +234,10 @@ class ImportWorkspace:
         checked_path(upload.temporary_path, self.folder)
         if complete and (upload.temporary_path not in self.fingerprints
                          or self._fingerprint(upload.temporary_path.lstat()) != self.fingerprints[upload.temporary_path]):
+            raise invalid("FILE_CHANGED", "Подготовленный файл изменился. Повторите загрузку.")
+        # Размер/mtime могут остаться прежними при замене содержимого, в том числе на Windows.
+        if complete and file_digest(upload.temporary_path, self.folder) != (
+                self.upload_hashes[upload.temporary_path].hexdigest(), self.sizes[upload.temporary_path]):
             raise invalid("FILE_CHANGED", "Подготовленный файл изменился. Повторите загрузку.")
 
     def storage_path(self, upload: StagedUpload, mime: str) -> str:
