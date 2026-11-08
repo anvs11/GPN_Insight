@@ -1,4 +1,5 @@
 from uuid import uuid4
+import os
 
 import pytest
 
@@ -22,3 +23,15 @@ def fixture():
 @pytest.fixture
 def settings(tmp_path):
     return Settings(_env_file=None, app_db_path=tmp_path / "insight.db")
+
+
+@pytest.fixture
+def create_symlink():
+    def create(link, target):
+        try:
+            link.symlink_to(target)
+        except OSError as exc:
+            if os.name == "nt" and exc.winerror == 1314:
+                pytest.skip("Windows WinError 1314: нет права создания symlink; реальный link-case не проверен")
+            raise
+    return create

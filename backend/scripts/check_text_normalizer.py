@@ -7,7 +7,7 @@ from contextlib import closing
 from uuid import uuid4
 
 from app.analysis.extractor import DEFAULT_PROMPT_PATH
-from app.ingestion.integration import build_text_pipeline, PROMPT_VERSIONS
+from app.ingestion.integration import build_text_pipeline, build_text_profile, PROMPT_VERSIONS
 from app.config import REPO_ROOT, Settings
 from app.db import initialize
 from app.gateways import GatewayUnavailable, TextRequest
@@ -22,11 +22,15 @@ from app.schemas import (
 
 
 def main() -> None:
-    example = json.loads((REPO_ROOT / "data/contracts/normalization-handoff.json").read_text(encoding="utf-8"))
+    example = json.loads((REPO_ROOT / "data/contracts/normalization-handoff-v2.json").read_text(encoding="utf-8"))
     assert example["synthetic"] is True and example["origin"] == "authored"
     ticket = TicketInput.model_validate(example["ticket"])
     original = ticket.model_dump()
     profile = ProcessingProfile.model_validate(example["profile"])
+    settings = Settings(_env_file=None)
+    assert profile == build_text_profile(settings, model_id=profile.model_id,
+        recording_set_version=profile.recording_set_version,
+        parameters={k: v for k, v in profile.parameters.items() if k not in {"normalization_hash", "text_integration"}})
     normalizer = TextNormalizer(profile)
     # Независимые от golden-примера границы: срок действия/соседние реквизиты
     # не должны скрывать PAN, открытая скобка и тире допустимы рядом с ИНН.
@@ -72,7 +76,7 @@ def main() -> None:
     record = make_record(request, ExtractedNeeds, payload, model_id=profile.model_id, normalization_hash=NORMALIZATION_HASH,
         set_version=profile.recording_set_version, origin="authored")
     publish_records(folder / "recordings", [record])
-    extractor = build_text_pipeline(ReplayGateway(folder / "recordings", profile.model_id, NORMALIZATION_HASH), profile, Settings(_env_file=None)).analysis
+    extractor = build_text_pipeline(ReplayGateway(folder / "recordings", profile.model_id, NORMALIZATION_HASH), profile, settings).analysis
     extraction = extractor.extract_needs(document)
     assert extraction.metadata == [record.metadata]
     print("extract: quote=masked-exact; metadata=authored; normalization_hash=matched")

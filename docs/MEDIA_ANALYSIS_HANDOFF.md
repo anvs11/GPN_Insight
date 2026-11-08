@@ -1,5 +1,7 @@
 # U1 → U2/U3: медиа-источники, метаданные и provenance
 
+Обновление U3 08.11.2026: PR #12/#13 уже в main `6f3b8df`. Постоянный ApprovedAsset теперь готовит read-only `app.media_runtime.resolve_registered_asset` по точным product/source/version/asset с owner/path/size/hash проверками; контракт/ошибки/Windows-приёмка — [MEDIA_RUNTIME.md](MEDIA_RUNTIME.md). Это закрывает серверную фабрику, описанную ниже как будущую; staging asset по-прежнему недолговечен. ASR/VL, Normalizer, media profile/replay и binary API остаются неготовыми. Исторические статусы 07.11 ниже сохранены.
+
 Сверено 7 ноября 2026 года с общими схемами main `60eedf3` и локальным media import в `feat/u1-media-import`. Версия документа/примеров — `media-analysis-handoff-v1`; это не версия модели, prompt или ProcessingProfile. Для участников подготовлен контракт уже существующих DTO и границ подключения. Новых схем/API/модельных протоколов здесь не вводится; отдельного ответа U2/U3 о приёмке новой мультимодальной интеграции в этой сессии нет.
 
 ## Готовность и область передачи

@@ -77,21 +77,29 @@ def test_cli_uses_same_validation_and_preserves_preview(media_context, tmp_path)
     settings, repo = media_context
     manifest = write_fixture(tmp_path / "dataset")
     env = {**os.environ, "APP_DB_PATH": str(repo.path), "APP_TMP_ROOT": str(settings.app_tmp_root),
-           "APP_UPLOAD_ROOT": str(settings.app_upload_root), "APP_MODEL_MODE": "replay"}
+           "APP_UPLOAD_ROOT": str(settings.app_upload_root), "APP_MODEL_MODE": "replay", "PYTHONUTF8": "1"}
     def call(*extra):
         return subprocess.run([sys.executable, "-m", "app.cli", "import", "--manifest", str(manifest), *extra],
-            cwd=REPO_ROOT / "backend", env=env, capture_output=True, text=True, timeout=15)
+            cwd=REPO_ROOT / "backend", env=env, capture_output=True, text=True, encoding="utf-8", timeout=15)
     before = repo.path.read_bytes()
     preview = call("--dry-run")
     assert preview.returncode == 0 and json.loads(preview.stdout)["can_commit"]
     assert repo.path.read_bytes() == before and not settings.app_upload_root.exists()
     assert json.loads(call().stdout)["counts"]["inserted"] == 4
     assert json.loads(call().stdout)["counts"]["unchanged"] == 4
+
+
+def test_cli_rejects_actual_symlink(media_context, tmp_path, create_symlink):
+    settings, repo = media_context
+    manifest = write_fixture(tmp_path / "dataset")
     (manifest.parent / "call.wav").unlink()
-    (manifest.parent / "call.wav").symlink_to(repo.path)
-    failed = call()
+    create_symlink(manifest.parent / "call.wav", repo.path)
+    env = {**os.environ, "APP_DB_PATH": str(repo.path), "APP_TMP_ROOT": str(settings.app_tmp_root),
+           "APP_UPLOAD_ROOT": str(settings.app_upload_root), "PYTHONUTF8": "1"}
+    failed = subprocess.run([sys.executable, "-m", "app.cli", "import", "--manifest", str(manifest)],
+        cwd=REPO_ROOT / "backend", env=env, capture_output=True, text=True, encoding="utf-8", timeout=15)
     assert failed.returncode == 1 and "FILE_LINK_UNSUPPORTED" in failed.stderr
-    assert len(repo.list_imports()) == 2
+    assert repo.list_imports() == []
 
 
 def test_actual_server_upload_larger_than_previous_text_envelope(media_context):

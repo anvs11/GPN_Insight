@@ -81,15 +81,21 @@ def test_image_pixels_boundary_and_stricter_file_limit(media_context, monkeypatc
     assert exc.value.status_code == 413
 
 
-def test_external_links_and_hardlinks_cannot_be_opened(tmp_path):
+def test_external_symlink_cannot_be_opened(tmp_path, create_symlink):
     root = tmp_path / "data"
     root.mkdir()
     outside = tmp_path / "private.wav"
     outside.write_bytes(wav_bytes())
-    (root / "call.wav").symlink_to(outside)
+    create_symlink(root / "call.wav", outside)
     with pytest.raises(RepositoryError), checked_open(root / "call.wav", root):
         pytest.fail("Followed symlink")
-    (root / "call.wav").unlink()
+
+
+def test_hardlink_and_outside_root_cannot_be_opened(tmp_path):
+    root = tmp_path / "data"
+    root.mkdir()
+    outside = tmp_path / "private.wav"
+    outside.write_bytes(wav_bytes())
     os.link(outside, root / "call.wav")
     with pytest.raises(RepositoryError), checked_open(root / "call.wav", root):
         pytest.fail("Read hardlink")
@@ -104,7 +110,10 @@ def test_casefold_collision_and_staged_replacement(media_context):
         with pytest.raises(RepositoryError) as duplicate:
             workspace.stage_stream("call.WAV", BytesIO(wav_bytes()))
         assert duplicate.value.code == "FILE_NAME_DUPLICATE"
+        original = upload.temporary_path.stat()
         upload.temporary_path.write_bytes(wav_bytes(sample=1))
+        # Проверяем содержимое даже при прежнем размере/mtime, независимо от ОС/таймера.
+        os.utime(upload.temporary_path, ns=(original.st_atime_ns, original.st_mtime_ns))
         result = import_tickets(manifest_for({"Call.wav": b""}), [upload], dry_run=True, repository=repo, workspace=workspace)
         assert not result.can_commit and result.errors[0].code == "FILE_CHANGED"
 
