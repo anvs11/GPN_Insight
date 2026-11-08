@@ -1,3 +1,4 @@
+import { importEntry } from '../test-fixtures/import'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
@@ -164,5 +165,30 @@ describe('Состояние обработки', () => {
     expect(sessionStorage.getItem('gpn-insight.last-run.v1')).toBe(run.run_id)
     expect(sessionStorage.getItem('gpn-insight.processing-draft.v1')).toContain('2026-10-31')
     expect(sessionStorage.getItem('user-setting')).toBe('unchanged')
+  })
+
+  it('в сценарии импорта блокирует анализ до непустой завершённой регистрации', async () => {
+    vi.spyOn(api, 'health').mockResolvedValue({ ...health, pipeline_ready: true })
+    vi.spyOn(api, 'imports').mockResolvedValue([])
+    render(<ProcessingPanel requireImport />)
+    await screen.findByText(/Сначала подтвердите непустой импорт/)
+    expect(screen.getByRole('button', { name: 'Запустить обработку' })).toHaveProperty('disabled', true)
+  })
+  it('после импорта перечитывает журнал, сохраняя введённый период', async () => {
+    vi.spyOn(api, 'health').mockResolvedValue({ ...health, pipeline_ready: true })
+    vi.spyOn(api, 'imports').mockResolvedValueOnce([]).mockResolvedValueOnce([importEntry])
+    const view = render(<ProcessingPanel requireImport importRevision={0} />)
+    await screen.findByText(/Сначала подтвердите непустой импорт/)
+    fireEvent.change(screen.getByLabelText('С даты'), { target: { value: '2026-10-01' } })
+    view.rerender(<ProcessingPanel requireImport importRevision={1} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Запустить обработку' })).toHaveProperty('disabled', false))
+    expect(screen.getByLabelText('С даты')).toHaveProperty('value', '2026-10-01')
+  })
+  it('при ошибке чтения журнала не использует непроверенное разрешение на запуск', async () => {
+    vi.spyOn(api, 'health').mockResolvedValue({ ...health, pipeline_ready: true })
+    vi.spyOn(api, 'imports').mockRejectedValue(new ApiError(503, { code: 'DATABASE_UNAVAILABLE', message: 'Журнал не прочитан.' }))
+    render(<ProcessingPanel requireImport />)
+    await screen.findByText('Журнал не прочитан.')
+    expect(screen.getByRole('button', { name: 'Запустить обработку' })).toHaveProperty('disabled', true)
   })
 })

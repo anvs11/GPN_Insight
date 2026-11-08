@@ -1,5 +1,5 @@
-import type { ApiErrorBody, DecisionUpdate, Health, PassportUpdate, Run, RunRequest, SourceDetail, TopicChangeEvent, TopicDetail, TopicFilters, TopicListItem } from './api-types'
-import { isSourceDetail, isTopicChanges, isTopicDetail, isTopicListItem } from './api-validators'
+import type { ImportLogEntry, ImportPreview, ImportResult, ReviewItem, ApiErrorBody, DecisionUpdate, Health, PassportUpdate, Run, RunRequest, SourceDetail, TopicChangeEvent, TopicDetail, TopicFilters, TopicListItem } from './api-types'
+import { isImportLog, isImportPreview, isImportResult, isReviews, isSourceDetail, isTopicChanges, isTopicDetail, isTopicListItem } from './api-validators'
 
 export class ApiError extends Error {
   readonly status: number
@@ -65,7 +65,41 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 }
 
+function importBody(manifest: string) {
+  const form = new FormData()
+  form.append('manifest', manifest)
+  return form
+}
+
 export const api = {
+  previewImport: async (manifest: string, signal?: AbortSignal): Promise<ImportPreview> => {
+    const result = await request<unknown>('/imports?dry_run=true', { method: 'POST', body: importBody(manifest), signal })
+    if (!isImportPreview(result)) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Предпросмотр не соответствует контракту. Подтверждение импорта недоступно.',
+    })
+    return result
+  },
+  commitImport: async (manifest: string, signal?: AbortSignal): Promise<ImportResult> => {
+    const result = await request<unknown>('/imports', { method: 'POST', body: importBody(manifest), signal })
+    if (!isImportResult(result)) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Ответ импорта не соответствует контракту. Запись могла пройти: проверьте журнал без повторной отправки.',
+    })
+    return result
+  },
+  imports: async (signal?: AbortSignal): Promise<ImportLogEntry[]> => {
+    const result = await request<unknown>('/imports', { signal })
+    if (!isImportLog(result)) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Журнал импортов не соответствует контракту. Результат не подтверждён.',
+    })
+    return result
+  },
+  reviews: async (signal?: AbortSignal): Promise<ReviewItem[]> => {
+    const result = await request<unknown>('/reviews?status=all', { signal })
+    if (!isReviews(result)) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Очередь проверки не соответствует контракту. Повторите чтение.',
+    })
+    return result
+  },
   savePassport: async (id: string, body: PassportUpdate, signal?: AbortSignal): Promise<TopicDetail> => {
     const result = await request<unknown>('/topics/' + encodeURIComponent(id) + '/passport', {
       method: 'PATCH', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

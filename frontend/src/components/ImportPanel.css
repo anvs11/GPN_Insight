@@ -1,0 +1,20 @@
+.import-panel fieldset { border: 1px solid var(--border); padding: 18px; border-radius: 10px; margin: 16px 0; min-width: 0; }
+.import-panel legend { color: var(--text-h); padding: 0 8px; }
+.import-panel label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 15px; margin-bottom: 16px; }
+.import-panel input, .import-panel select, .import-panel textarea { font: inherit; width: 100%; box-sizing: border-box; min-width: 0; min-height: 44px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-h); padding: 10px; }
+.import-panel textarea { resize: vertical; }
+.import-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.import-wide { grid-column: 1 / -1; }
+.import-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.import-counts dt { font-size: 14px; }
+.import-counts dd { margin: 4px 0 0; color: var(--text-h); font-size: 20px; }
+.import-panel section, .review-panel article { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 18px; }
+.import-panel li, .review-panel li { margin: 12px 0; }
+.import-panel summary { cursor: pointer; min-height: 44px; }
+.import-panel a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); }
+.import-panel details { margin: 16px 0; }
+@media (max-width: 700px) {
+  .import-fields { grid-template-columns: 1fr; }
+  .import-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .import-panel fieldset { padding: 12px; }
+}
