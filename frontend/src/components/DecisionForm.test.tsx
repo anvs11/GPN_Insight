@@ -42,7 +42,7 @@ describe('Сохранение решения владельца продукт�
     const user = userEvent.setup()
     let finishPatch: (detail: Detail) => void = () => { throw new Error('PATCH не создан') }
     let finishGet: (detail: Detail) => void = () => { throw new Error('GET не создан') }
-    vi.spyOn(api, 'topics').mockResolvedValue([topicDetail])
+    vi.spyOn(api, 'topics').mockResolvedValueOnce([topicDetail]).mockResolvedValue([saved])
     const topic = vi.spyOn(api, 'topic').mockResolvedValueOnce(topicDetail).mockReturnValueOnce(new Promise(resolve => { finishGet = resolve }))
     const patch = vi.spyOn(api, 'saveDecision').mockReturnValue(new Promise(resolve => { finishPatch = resolve }))
     render(<TopicList />)
@@ -271,7 +271,7 @@ describe('Сохранение решения владельца продукт�
     const user = userEvent.setup()
     let finishList: (items: Detail[]) => void = () => { throw new Error('Запрос списка не создан') }
     const topics = vi.spyOn(api, 'topics').mockResolvedValueOnce([topicDetail])
-      .mockReturnValueOnce(new Promise(resolve => { finishList = resolve }))
+      .mockReturnValueOnce(new Promise(resolve => { finishList = resolve })).mockResolvedValue([saved])
     vi.spyOn(api, 'topic').mockResolvedValueOnce(topicDetail).mockResolvedValue(saved)
     vi.spyOn(api, 'saveDecision').mockResolvedValue(saved)
     render(<TopicList />)

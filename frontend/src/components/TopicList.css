@@ -22,3 +22,9 @@
   .topic-list-stats { grid-template-columns: 1fr; }
   .topic-list-items > li { padding: 14px; }
 }
+
+.topic-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 14px; margin: 20px 0 12px; align-items: end; }
+.topic-filters label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 15px; }
+.topic-filters input, .topic-filters select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; color: var(--text-h); background: var(--bg); }
+.topic-filters .topic-actions { grid-column: 1 / -1; }
+.topic-list-items h4 { color: var(--text-h); margin: 16px 0 6px; }

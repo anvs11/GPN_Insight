@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -25,7 +25,7 @@ describe('Список тем из Backend', () => {
     vi.spyOn(api, 'topics').mockResolvedValue([{ ...topicListItem, pending_source_ids: ['SYNTHETIC-UPDATED'] }])
     render(<TopicList />)
     await screen.findByRole('heading', { name: topicListItem.topic.title })
-    expect(screen.getByText('Исследуется')).toBeTruthy()
+    expect(within(screen.getByRole('article')).getByText('Исследуется')).toBeTruthy()
     expect(screen.getByText('4')).toBeTruthy()
     expect(screen.getByText('Нет данных')).toBeTruthy()
     expect(screen.getByText('Тестовый владелец')).toBeTruthy()

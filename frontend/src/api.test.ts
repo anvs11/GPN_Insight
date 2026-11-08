@@ -1,3 +1,4 @@
+import { passportChange, passportDetail, passportRequest, savedPassport } from './test-fixtures/passport'
 import { describe, expect, it, vi } from 'vitest'
 import { api, ApiError } from './api'
 import { topicListItem } from './test-fixtures/topic'
@@ -152,5 +153,80 @@ describe('HTTP-контракт обработки', () => {
     await Promise.resolve()
     controller.abort()
     await result
+  })
+})
+
+describe('Фильтры тем и статистика периода', () => {
+  const period = { ...topicDetail.stats, ticket_count: 1, requester_count: null,
+    date_from: '2026-11-01', date_to: '2026-11-01' }
+
+  it('передаёт только поддерживаемые query-параметры, без режима и тела', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats: period }])))
+    vi.stubGlobal('fetch', fetchMock)
+    const filters = { status: 'needs_research' as const, support_level: 'all' as const,
+      date_from: period.date_from, date_to: period.date_to }
+    const result = await api.topics(undefined, filters)
+    const url = new URL(fetchMock.mock.calls[0][0], 'http://localhost')
+    expect(Object.fromEntries(url.searchParams)).toEqual(filters)
+    expect(result[0].stats.ticket_count).toBe(4)
+    expect(result[0].period_stats?.ticket_count).toBe(1)
+    expect(fetchMock.mock.calls[0][1].body).toBeUndefined()
+  })
+
+  it.each(['date_from', 'date_to'] as const)('поддерживает одну границу %s', async field => {
+    const bounds = { date_from: null, date_to: null, [field]: '2026-11-01' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats: { ...period, ...bounds } }]))))
+    const result = await api.topics(undefined, { [field]: '2026-11-01' })
+    expect(result[0].period_stats?.[field]).toBe('2026-11-01')
+  })
+
+  it.each([
+    null,
+    { ...period, ticket_count: -1 },
+    { ...period, requester_count: 'unknown' },
+    { ...period, date_from: '2026-10-01' },
+    { ...period, weekly_counts: null },
+  ])('не публикует неверную или чужую статистику периода: %j', async period_stats => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats }]))))
+    await expect(api.topics(undefined, { date_from: '2026-11-01', date_to: '2026-11-01' })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
+  it('отклоняет неожиданную статистику периода при запросе за всё время', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...topicListItem, period_stats: period }]))))
+    await expect(api.topics()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
+  it('показывает серверный 422 без замены пустым списком', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 'INVALID_PERIOD', message: 'Неверный период.' }), { status: 422 })))
+    await expect(api.topics(undefined, { date_from: '2026-11-02', date_to: '2026-11-01' })).rejects.toMatchObject({ status: 422, code: 'INVALID_PERIOD' })
+  })
+})
+
+describe('Паспорт темы: реальный формат HTTP', () => {
+  it('отправляет два номера версии и точное тело PATCH паспорта', async () => {
+    const request = passportRequest(), saved = savedPassport(passportDetail, request)
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(saved)))
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await api.savePassport(passportDetail.topic.topic_id, request)).toEqual(saved)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/topics/' + passportDetail.topic.topic_id + '/passport')
+    expect(fetchMock.mock.calls[0][1].method).toBe('PATCH')
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request)
+  })
+  it('читает отдельную историю и отклоняет чужую или повреждённую запись', async () => {
+    const request = passportRequest(), event = passportChange(passportDetail, request)
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify([event])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ...event, topic_id: 'other' }])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ...event, after: {} }])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([event, event])))
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await api.topicChanges(passportDetail.topic.topic_id)).toEqual([event])
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/topics/' + passportDetail.topic.topic_id + '/changes')
+    for (let i = 0; i < 3; i++) await expect(api.topicChanges(passportDetail.topic.topic_id)).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+  it.each([404, 409, 422, 503])('сохраняет HTTP %s без имитации успеха и повторного PATCH', async status => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 'SERVER_ERROR', message: 'Не сохранено.' }), { status }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(api.savePassport(passportDetail.topic.topic_id, passportRequest())).rejects.toMatchObject({ status })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

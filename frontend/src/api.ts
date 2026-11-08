@@ -1,5 +1,5 @@
-import type { ApiErrorBody, DecisionUpdate, Health, Run, RunRequest, SourceDetail, TopicDetail, TopicListItem } from './api-types'
-import { isSourceDetail, isTopicDetail, isTopicListItem } from './api-validators'
+import type { ApiErrorBody, DecisionUpdate, Health, PassportUpdate, Run, RunRequest, SourceDetail, TopicChangeEvent, TopicDetail, TopicFilters, TopicListItem } from './api-types'
+import { isSourceDetail, isTopicChanges, isTopicDetail, isTopicListItem } from './api-validators'
 
 export class ApiError extends Error {
   readonly status: number
@@ -66,6 +66,22 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  savePassport: async (id: string, body: PassportUpdate, signal?: AbortSignal): Promise<TopicDetail> => {
+    const result = await request<unknown>('/topics/' + encodeURIComponent(id) + '/passport', {
+      method: 'PATCH', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (!isTopicDetail(result) || result.topic.topic_id !== id) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Ответ сохранения паспорта не соответствует контракту. Проверьте карточку и историю изменений.',
+    })
+    return result
+  },
+  topicChanges: async (id: string, signal?: AbortSignal): Promise<TopicChangeEvent[]> => {
+    const result = await request<unknown>('/topics/' + encodeURIComponent(id) + '/changes', { signal })
+    if (!isTopicChanges(result) || result.some(event => event.topic_id !== id)) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'История изменений не соответствует контракту или выбранной теме. Повторите чтение.',
+    })
+    return result
+  },
   saveDecision: async (id: string, body: DecisionUpdate, signal?: AbortSignal): Promise<TopicDetail> => {
     const result = await request<unknown>(`/topics/${encodeURIComponent(id)}/decision`, {
       method: 'PATCH', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -89,9 +105,18 @@ export const api = {
     }
     return result
   },
-  topics: async (signal?: AbortSignal): Promise<TopicListItem[]> => {
-    const result = await request<unknown>('/topics', { signal })
-    if (!Array.isArray(result) || !result.every(isTopicListItem)) {
+  topics: async (signal?: AbortSignal, filters: TopicFilters = {}): Promise<TopicListItem[]> => {
+    const query = new URLSearchParams()
+    for (const key of ['status', 'support_level', 'date_from', 'date_to'] as const) {
+      const value = filters[key]
+      if (value) query.set(key, value)
+    }
+    const result = await request<unknown>('/topics' + (query.size > 0 ? '?' + query.toString() : ''), { signal })
+    const hasPeriod = Boolean(filters.date_from || filters.date_to)
+    if (!Array.isArray(result) || !result.every(isTopicListItem) || result.some(item => hasPeriod
+      ? item.period_stats === null || item.period_stats.date_from !== (filters.date_from || null) ||
+        item.period_stats.date_to !== (filters.date_to || null)
+      : item.period_stats !== null)) {
       throw new ApiError(200, { code: 'INVALID_RESPONSE',
         message: 'Ответ со списком тем не соответствует контракту. Проверьте версию Backend и повторите загрузку.' })
     }
