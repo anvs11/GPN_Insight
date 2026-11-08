@@ -229,3 +229,34 @@ export interface TopicDetail extends TopicListItem {
   sources: SourceDetail[]
   history: DecisionEvent[]
 }
+
+export interface PassportFields {
+  scenario: string
+  need_statement: string
+  scope: string
+  inclusion_examples: PassportExample[]
+  exclusion_examples: PassportExample[]
+  scope_confirmed: boolean
+}
+
+export interface PassportUpdate {
+  version: number
+  passport_version: number
+  author: string
+  reason: string
+  passport: PassportFields
+  title?: string | null
+}
+
+export interface TopicChangeEvent {
+  event_id: string
+  topic_id: string
+  kind: 'passport' | 'attachment' | 'manual_override' | 'merge' | 'exclusion'
+  author: string
+  reason: string
+  occurred_at: string
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+  request_hash: string | null
+  result: Record<string, unknown> | null
+}

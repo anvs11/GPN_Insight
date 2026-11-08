@@ -4,6 +4,7 @@ import type { EvidenceRef, PassportExample, TopicDetail as Detail } from '../api
 import { formatTopicDate, topicStatusLabels } from '../topic-labels'
 import { SourceViewer } from './SourceViewer'
 import { DecisionForm } from './DecisionForm'
+import { PassportForm } from './PassportForm'
 import './TopicDetail.css'
 
 export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: string; onClose: () => void; onTopicUpdated?: (value: Detail) => void }) {
@@ -14,6 +15,24 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
   const [selection, setSelection] = useState<{ id: string; evidence?: EvidenceRef } | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const [decisionBusy, setDecisionBusy] = useState(false)
+  const [passportBusy, setPassportBusy] = useState(false)
+  const [editingPassport, setEditingPassport] = useState(false)
+  const mutationRef = useRef<'decision' | 'passport' | null>(null)
+  const busy = decisionBusy || passportBusy
+
+  function mutationBusy(kind: 'decision' | 'passport', value: boolean) {
+    // Общий ref блокирует две записи даже до следующего рендера React.
+    if (value && mutationRef.current !== null) return false
+    if (!value && mutationRef.current !== kind) return false
+    mutationRef.current = value ? kind : null
+    if (kind === 'decision') setDecisionBusy(value)
+    else setPassportBusy(value)
+    return true
+  }
+  function readCard(value: Detail) {
+    controllerRef.current?.abort()
+    setLoading(false); setDetail(value); setError(null); onTopicUpdated?.(value)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -35,7 +54,7 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
   }, [topicId, revision])
 
   function refresh() {
-    if (decisionBusy) return
+    if (busy) return
     controllerRef.current?.abort()
     setLoading(true); setError(null); setSelection(null)
     setRevision(value => value + 1)
@@ -61,8 +80,8 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
 
   return <section className="topic-detail" aria-label="Карточка темы">
     <header className="topic-list-heading"><h3>Карточка темы</h3><div className="topic-actions">
-      <button type="button" disabled={loading || decisionBusy} onClick={refresh}>Обновить карточку</button>
-      <button type="button" disabled={decisionBusy} onClick={onClose}>Закрыть карточку</button>
+      <button type="button" disabled={loading || busy} onClick={refresh}>Обновить карточку</button>
+      <button type="button" disabled={busy} onClick={onClose}>Закрыть карточку</button>
     </div></header>
     {loading && <p role="status">Загружаем карточку…</p>}
     {error && <div role="alert" className="topic-list-error">
@@ -102,6 +121,9 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
         <dt>Версия паспорта</dt><dd>{detail.topic.passport.version}</dd></dl>
       {examples('Примеры включения в тему', detail.topic.passport.inclusion_examples)}
       {examples('Примеры исключения из темы', detail.topic.passport.exclusion_examples)}
+      {!editingPassport && <button type="button" disabled={loading || busy || error !== null} onClick={() => setEditingPassport(true)}>Редактировать паспорт и посмотреть историю</button>}
+      {editingPassport && <PassportForm detail={detail} stale={loading || error !== null} disabled={decisionBusy}
+        onRead={readCard} onBusyChange={value => mutationBusy('passport', value)} />}
       <h4>Количество обращений по неделям</h4><p>Начало недели — дата, указанная сервером. Счётчики рассчитаны по сохранённым записям.</p>
       {Object.keys(detail.stats.weekly_counts).length === 0 ? <p>Данных по неделям нет.</p> : <ul>
         {Object.entries(detail.stats.weekly_counts).sort(([a], [b]) => a.localeCompare(b)).map(([week, count]) => <li key={week}>{week}: {count}</li>)}
@@ -116,12 +138,8 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
       </ul>}
       {selection && <SourceViewer key={`${selection.id}-${selection.evidence?.fragment_id ?? ''}-${selection.evidence?.quote ?? ''}`}
         sourceId={selection.id} evidence={selection.evidence} onClose={() => setSelection(null)} />}
-      <DecisionForm key={detail.topic.topic_id} detail={detail} stale={loading || error !== null} onBusyChange={setDecisionBusy}
-        onRead={value => {
-          // Поздний ответ предыдущего ручного GET не отменяет проверку решения.
-          controllerRef.current?.abort()
-          setLoading(false); setDetail(value); setError(null); onTopicUpdated?.(value)
-        }} />
+      <DecisionForm key={detail.topic.topic_id} detail={detail} stale={loading || error !== null} disabled={passportBusy}
+        onBusyChange={value => mutationBusy('decision', value)} onRead={readCard} />
       <details><summary>История решений ({detail.history.length})</summary>
         {detail.history.length === 0 ? <p>Сохранённых решений пока нет.</p> : <ol>{detail.history.map(event => <li key={event.event_id}>
           <p>{formatTopicDate(event.occurred_at)} МСК · {topicStatusLabels[event.previous_status]} → {topicStatusLabels[event.new_status]} · Версия темы: {event.topic_version}</p>

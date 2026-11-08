@@ -19,8 +19,8 @@ function sameDraft(draft: Draft, request: DecisionUpdate) {
   return draft.status === request.status && draft.owner === request.owner && draft.reason === request.reason
 }
 
-export function DecisionForm({ detail, stale, onRead, onBusyChange }: {
-  detail: TopicDetail; stale: boolean; onRead: (value: TopicDetail) => void; onBusyChange: (busy: boolean) => void
+export function DecisionForm({ detail, stale, disabled = false, onRead, onBusyChange }: {
+  detail: TopicDetail; stale: boolean; disabled?: boolean; onRead: (value: TopicDetail) => void; onBusyChange: (busy: boolean) => boolean | void
 }) {
   const [base, setBase] = useState(detail)
   const [draft, setDraft] = useState<Draft>(() => ({ status: detail.topic.status === 'new' ? 'new' : 'needs_research', owner: detail.topic.owner ?? '', reason: '' }))
@@ -38,16 +38,16 @@ export function DecisionForm({ detail, stale, onRead, onBusyChange }: {
   const merged = detail.topic.status === 'merged'
   const cardChanged = detail.topic.version !== base.topic.version
   const alreadySaved = confirmed?.kind === 'confirmed' && sameDraft(draft, confirmed.request)
-  const blocked = busy || stale || merged || needsReview || cardChanged || pending !== null || alreadySaved
-  const canAcceptVersion = !busy && !stale && !merged && !pending?.receipt &&
+  const blocked = busy || disabled || stale || merged || needsReview || cardChanged || pending !== null || alreadySaved
+  const canAcceptVersion = !busy && !disabled && !stale && !merged && !pending?.receipt &&
     (needsReview ? latestChecked === detail.topic.version : cardChanged)
 
   function begin(nextPhase: 'saving' | 'reading') {
     // Ref блокирует второй submit ещё до следующего рендера React.
-    if (controllerRef.current) return null
+    if (controllerRef.current || onBusyChange(true) === false) return null
     const controller = new AbortController()
     controllerRef.current = controller
-    setPhase(nextPhase); onBusyChange(true)
+    setPhase(nextPhase)
     return controller
   }
   function finish(controller: AbortController) {
@@ -136,6 +136,7 @@ export function DecisionForm({ detail, stale, onRead, onBusyChange }: {
     <p>Доступны «Новая» и «Исследуется». Ответственный и причина обязательны. Каждое сохранение, даже без смены статуса, добавляет запись в историю.</p>
     <p>Версия для отправки: <strong>{base.topic.version}</strong>. Версия прочитанной карточки: <strong>{detail.topic.version}</strong>.</p>
     {merged && <p className="topic-notice">Тема объединена. Решение нужно менять в основной теме {detail.topic.canonical_topic_id}.</p>}
+    {disabled && <p className="topic-notice">Сначала завершите сохранение паспорта.</p>}
     {stale && <p className="topic-notice">Актуальность карточки не подтверждена. Сначала успешно обновите карточку; введённые значения останутся в форме.</p>}
     {(needsReview || cardChanged) && !merged && <div className="topic-notice">
       <p>Сохранение заблокировано до проверки актуальной карточки. Введённые значения сохранены. Сравните статус, ответственного и историю; версия не подставляется незаметно.</p>
@@ -151,7 +152,7 @@ export function DecisionForm({ detail, stale, onRead, onBusyChange }: {
     {pending && <p className="topic-notice">{pending.receipt
       ? 'Сервер ответил на сохранение. Повторное чтение ещё не подтвердило решение; повторный PATCH заблокирован.'
       : 'Сохранение пока не подтверждено. Проверка выполняется чтением карточки, без повторной отправки решения.'}</p>}
-    {(needsReview || pending || readError) && <button type="button" disabled={busy} onClick={() => { void check() }}>Проверить карточку без повторного сохранения</button>}
+    {(needsReview || pending || readError) && <button type="button" disabled={busy || disabled} onClick={() => { void check() }}>Проверить карточку без повторного сохранения</button>}
     {confirmed && !stale && (confirmed.kind === 'changed' || !cardChanged) && <p role="status" className={confirmed.kind === 'confirmed' ? 'decision-confirmed' : 'topic-notice'}>
       {confirmed.kind === 'confirmed'
         ? `Сохранение подтверждено повторным чтением: «${topicStatusLabels[confirmed.request.status]}», версия ${confirmed.request.version + 1}. Запись решения и прежняя история сохранены.`
@@ -159,7 +160,7 @@ export function DecisionForm({ detail, stale, onRead, onBusyChange }: {
       {!sameDraft(draft, confirmed.request) && ' Новые значения формы пока не отправлены.'}
     </p>}
     <form onSubmit={event => { void submit(event) }} noValidate>
-      <fieldset disabled={busy || merged}>
+      <fieldset disabled={busy || disabled || merged}>
         <legend>Новое решение</legend>
         <label>Статус решения<select value={draft.status} onChange={event => {
           const status = event.target.value
