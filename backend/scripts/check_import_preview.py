@@ -69,7 +69,7 @@ def main() -> None:
     check("duplicate-key", b'{"tickets":[],"tickets":[]}', code="JSON_DUPLICATE_KEY")
     media = copy.deepcopy(manifest)
     media["tickets"][0]["assets"] = [{"asset_id": "audio-1", "kind": "audio", "path": "call.wav", "mime_type": "audio/wav"}]
-    check("media", media, code="MEDIA_NOT_SUPPORTED")
+    check("media-without-file", media, code="MEDIA_FILES_MISMATCH")
     missing = folder / "not-created" / "missing.db"
     check("missing-db", manifest, target=Repository(missing), code="PREVIEW_DATABASE_MISSING")
     assert not missing.parent.exists()

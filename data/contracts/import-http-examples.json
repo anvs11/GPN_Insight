@@ -15,14 +15,20 @@
         "content_type": "application/json"
       }
     ],
-    "files_policy": "Любые повторяющиеся files сейчас отклоняются целиком; filename не образует путь хранения."
+    "files_policy": "До 30 WAV/MP3/PNG/JPEG с точным соответствием manifest/files; filename не образует путь хранения."
   },
   "limits": {
-    "body_bytes": 1114112,
+    "body_bytes": 54525952,
     "manifest_bytes": 1048576,
-    "parts": 8,
-    "fields": 8,
-    "files": 8,
+    "parts": 31,
+    "fields": 1,
+    "files": 31,
+    "media_files": 30,
+    "media_total_bytes": 52428800,
+    "audio_bytes": 10485760,
+    "image_bytes": 5242880,
+    "audio_seconds": 60,
+    "image_pixels": 25000000,
     "part_header_bytes": 8192
   },
   "responses": {
@@ -57,8 +63,8 @@
         },
         "errors": [
           {
-            "code": "MEDIA_NOT_SUPPORTED",
-            "message": "Текстовый импорт не принимает files. Уберите вложения целиком.",
+            "code": "MEDIA_FILES_MISMATCH",
+            "message": "Для каждого вложения manifest передайте ровно один файл с точным именем, без лишних файлов.",
             "source_id": null,
             "asset_id": null,
             "field": null
@@ -117,8 +123,8 @@
     "invalid_commit": {
       "status_code": 422,
       "body": {
-        "code": "MEDIA_NOT_SUPPORTED",
-        "message": "Уберите вложения. Импорт не выполнен.",
+        "code": "MEDIA_FILES_MISMATCH",
+        "message": "Для каждого вложения manifest передайте ровно один файл с точным именем, без лишних файлов.",
         "run_id": null
       }
     },
@@ -126,7 +132,7 @@
       "status_code": 413,
       "body": {
         "code": "IMPORT_BODY_TOO_LARGE",
-        "message": "Тело запроса превышает 1 МиБ + 64 КиБ.",
+        "message": "Тело запроса превышает 52 МиБ. Уменьшите набор.",
         "run_id": null
       }
     },

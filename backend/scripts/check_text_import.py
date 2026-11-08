@@ -140,7 +140,7 @@ def main() -> None:
         db.execute("DROP TRIGGER check_fail_log")
     media = copy.deepcopy(manifest)
     media["tickets"][0]["assets"] = [{"asset_id": "a-1", "kind": "audio", "path": "call.wav", "mime_type": "audio/wav"}]
-    failure(media, "media", "MEDIA_NOT_SUPPORTED")
+    failure(media, "media-without-file", "MEDIA_FILES_MISMATCH")
     repo.create_run(Run(run_id="synthetic-active-run", mode="replay", state="queued", stage="queued", created_at=now(), total_materials=0))
     failure(manifest, "active-run", "RUN_ACTIVE")
     repo.interrupt_active_runs()

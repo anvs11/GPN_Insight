@@ -1,0 +1,366 @@
+{
+  "contract_version": "media-analysis-handoff-v1",
+  "purpose": "media_contract_shapes_only_not_runtime_profile_or_recording",
+  "synthetic": true,
+  "origin": "authored",
+  "model_called": false,
+  "storage_paths_are_illustrative": true,
+  "note": "Хеши/размеры взяты из синтетических файлов. Модельные ответы/профиль/RecordingMeta не подготовлены. Пустые media-фрагменты — примеры схемы, не распознавание и не вывод об отсутствии потребностей.",
+  "current_text_normalization": {
+    "version": "text-pii-v1-proposal",
+    "hash": "731c60015a270661e72a5a1d17c8c07bcce9306582fdec43ec3d226889ecf63a"
+  },
+  "media_processing_profile": null,
+  "media_recording_metadata": null,
+  "recording_meta_fields": [
+    "request_hash",
+    "prompt_hash",
+    "normalization_hash",
+    "model_id",
+    "parameters",
+    "origin",
+    "recording_set_version"
+  ],
+  "examples": [
+    {
+      "fixture_path": "data/media-import/call.wav",
+      "source": {
+        "ticket": {
+          "source_id": "SYNTHETIC-MEDIA-1",
+          "product_id": "webneft",
+          "created_at": "2026-10-15T12:00:00+03:00",
+          "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+          "requester_id": null,
+          "assets": [
+            {
+              "asset_id": "synthetic-asset-1",
+              "kind": "audio",
+              "path": "call.wav",
+              "mime_type": "audio/wav",
+              "source_url": null
+            }
+          ]
+        },
+        "document": null,
+        "needs": [],
+        "source_version": 1,
+        "content_hash": "c89f4a9b06f8692e7730127e694b0fdb53a204c3ec8a118601fcab036104cf16",
+        "requires_analysis": true,
+        "synthetic": true,
+        "data_origin": "imported"
+      },
+      "registered_material": {
+        "asset_id": "synthetic-asset-1",
+        "kind": "audio",
+        "content_hash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+        "storage_path": "requests/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/00000000000000000000000000000001.wav",
+        "original_filename": "call.wav",
+        "mime_type": "audio/wav",
+        "byte_size": 1644
+      },
+      "adapter_value_authored_example": {
+        "fragments": [
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-1",
+            "kind": "asr",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ]
+      },
+      "normalized_document_contract_example": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-1",
+        "content_hash": "c89f4a9b06f8692e7730127e694b0fdb53a204c3ec8a118601fcab036104cf16",
+        "version": 1,
+        "normalization_version": "media-contract-example-not-implemented",
+        "fragments": [
+          {
+            "fragment_id": "local-text-1",
+            "asset_id": null,
+            "kind": "text",
+            "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": null
+          },
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-1",
+            "kind": "asr",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ],
+        "errors": []
+      },
+      "current_pipeline_error": {
+        "source_id": "SYNTHETIC-MEDIA-1",
+        "asset_id": null,
+        "stage": "normalization",
+        "code": "MEDIA_PIPELINE_NOT_IMPLEMENTED",
+        "message": "Этап не завершён. Проверьте код ошибки и интеграцию; успешные шаги сохранены для повтора."
+      }
+    },
+    {
+      "fixture_path": "data/media-import/call.mp3",
+      "source": {
+        "ticket": {
+          "source_id": "SYNTHETIC-MEDIA-2",
+          "product_id": "webneft",
+          "created_at": "2026-10-15T12:00:00+03:00",
+          "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+          "requester_id": null,
+          "assets": [
+            {
+              "asset_id": "synthetic-asset-2",
+              "kind": "audio",
+              "path": "call.mp3",
+              "mime_type": "audio/mpeg",
+              "source_url": null
+            }
+          ]
+        },
+        "document": null,
+        "needs": [],
+        "source_version": 1,
+        "content_hash": "1cd5a6cf1b8aa4aafb549e8c0c629847a57011b80025742ee4d562aaccdc643a",
+        "requires_analysis": true,
+        "synthetic": true,
+        "data_origin": "imported"
+      },
+      "registered_material": {
+        "asset_id": "synthetic-asset-2",
+        "kind": "audio",
+        "content_hash": "d1f4c6198b85c6a58deb2e335460070612e84b12d271ca9662638342eaf869df",
+        "storage_path": "requests/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/00000000000000000000000000000002.mp3",
+        "original_filename": "call.mp3",
+        "mime_type": "audio/mpeg",
+        "byte_size": 4170
+      },
+      "adapter_value_authored_example": {
+        "fragments": [
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-2",
+            "kind": "asr",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ]
+      },
+      "normalized_document_contract_example": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-2",
+        "content_hash": "1cd5a6cf1b8aa4aafb549e8c0c629847a57011b80025742ee4d562aaccdc643a",
+        "version": 1,
+        "normalization_version": "media-contract-example-not-implemented",
+        "fragments": [
+          {
+            "fragment_id": "local-text-1",
+            "asset_id": null,
+            "kind": "text",
+            "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": null
+          },
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-2",
+            "kind": "asr",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ],
+        "errors": []
+      },
+      "current_pipeline_error": {
+        "source_id": "SYNTHETIC-MEDIA-2",
+        "asset_id": null,
+        "stage": "normalization",
+        "code": "MEDIA_PIPELINE_NOT_IMPLEMENTED",
+        "message": "Этап не завершён. Проверьте код ошибки и интеграцию; успешные шаги сохранены для повтора."
+      }
+    },
+    {
+      "fixture_path": "data/media-import/screen.png",
+      "source": {
+        "ticket": {
+          "source_id": "SYNTHETIC-MEDIA-3",
+          "product_id": "webneft",
+          "created_at": "2026-10-15T12:00:00+03:00",
+          "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+          "requester_id": null,
+          "assets": [
+            {
+              "asset_id": "synthetic-asset-3",
+              "kind": "image",
+              "path": "screen.png",
+              "mime_type": "image/png",
+              "source_url": null
+            }
+          ]
+        },
+        "document": null,
+        "needs": [],
+        "source_version": 1,
+        "content_hash": "80134170c36f9620a745bd622a08f1a23d292d3c7d43cd377d06e3e8fef1f31b",
+        "requires_analysis": true,
+        "synthetic": true,
+        "data_origin": "imported"
+      },
+      "registered_material": {
+        "asset_id": "synthetic-asset-3",
+        "kind": "image",
+        "content_hash": "bd0b83bce52b94ba577d39de2196799f654c12fe1114337e3ab3590bb63f06f7",
+        "storage_path": "requests/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/00000000000000000000000000000003.png",
+        "original_filename": "screen.png",
+        "mime_type": "image/png",
+        "byte_size": 92
+      },
+      "adapter_value_authored_example": {
+        "fragments": [
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-3",
+            "kind": "vision",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ]
+      },
+      "normalized_document_contract_example": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-3",
+        "content_hash": "80134170c36f9620a745bd622a08f1a23d292d3c7d43cd377d06e3e8fef1f31b",
+        "version": 1,
+        "normalization_version": "media-contract-example-not-implemented",
+        "fragments": [
+          {
+            "fragment_id": "local-text-1",
+            "asset_id": null,
+            "kind": "text",
+            "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": null
+          },
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-3",
+            "kind": "vision",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ],
+        "errors": []
+      },
+      "current_pipeline_error": {
+        "source_id": "SYNTHETIC-MEDIA-3",
+        "asset_id": null,
+        "stage": "normalization",
+        "code": "MEDIA_PIPELINE_NOT_IMPLEMENTED",
+        "message": "Этап не завершён. Проверьте код ошибки и интеграцию; успешные шаги сохранены для повтора."
+      }
+    },
+    {
+      "fixture_path": "data/media-import/photo.jpg",
+      "source": {
+        "ticket": {
+          "source_id": "SYNTHETIC-MEDIA-4",
+          "product_id": "webneft",
+          "created_at": "2026-10-15T12:00:00+03:00",
+          "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+          "requester_id": null,
+          "assets": [
+            {
+              "asset_id": "synthetic-asset-4",
+              "kind": "image",
+              "path": "photo.jpg",
+              "mime_type": "image/jpeg",
+              "source_url": null
+            }
+          ]
+        },
+        "document": null,
+        "needs": [],
+        "source_version": 1,
+        "content_hash": "8148121664b37457ccca47a3359d07d45e9fcf4510b3621859cb53ab6bb7e659",
+        "requires_analysis": true,
+        "synthetic": true,
+        "data_origin": "imported"
+      },
+      "registered_material": {
+        "asset_id": "synthetic-asset-4",
+        "kind": "image",
+        "content_hash": "4d8a7284289c56dad4df6aa813d227b451e7132f7f4f23c0554edb69e03390b6",
+        "storage_path": "requests/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/00000000000000000000000000000004.jpg",
+        "original_filename": "photo.jpg",
+        "mime_type": "image/jpeg",
+        "byte_size": 633
+      },
+      "adapter_value_authored_example": {
+        "fragments": [
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-4",
+            "kind": "vision",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ]
+      },
+      "normalized_document_contract_example": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-4",
+        "content_hash": "8148121664b37457ccca47a3359d07d45e9fcf4510b3621859cb53ab6bb7e659",
+        "version": 1,
+        "normalization_version": "media-contract-example-not-implemented",
+        "fragments": [
+          {
+            "fragment_id": "local-text-1",
+            "asset_id": null,
+            "kind": "text",
+            "text": "Синтетический пример: прошу изменить телефон в заявке. Вложение искусственное.",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": null
+          },
+          {
+            "fragment_id": "local-media-1",
+            "asset_id": "synthetic-asset-4",
+            "kind": "vision",
+            "text": "",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Контрактный authored-пример пустого фрагмента. Модель не вызывалась; распознавание и отсутствие потребностей этим не подтверждаются."
+          }
+        ],
+        "errors": []
+      },
+      "current_pipeline_error": {
+        "source_id": "SYNTHETIC-MEDIA-4",
+        "asset_id": null,
+        "stage": "normalization",
+        "code": "MEDIA_PIPELINE_NOT_IMPLEMENTED",
+        "message": "Этап не завершён. Проверьте код ошибки и интеграцию; успешные шаги сохранены для повтора."
+      }
+    }
+  ]
+}

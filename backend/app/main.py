@@ -13,6 +13,7 @@ from .config import Settings
 from .db import initialize
 from .gateways import UnavailableGateways, text_gateway
 from .imports_api import router as imports_router
+from .ingestion.media_files import reconcile_import_storage, save_recovery_report
 from .pipeline import PipelineAdapters
 from .repositories import Repository, RepositoryError
 from .runs import RunService
@@ -34,6 +35,11 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
     async def lifespan(app: FastAPI):
         initialize(repository.path)
         repository.interrupt_active_runs()
+        app.state.import_storage_report = reconcile_import_storage(repository, settings)
+        try:
+            save_recovery_report(app.state.import_storage_report)
+        except (OSError, RepositoryError):
+            app.state.import_storage_report.issues.append("IMPORT_RECOVERY_REPORT_UNAVAILABLE")
         try:
             yield
         finally:

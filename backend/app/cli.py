@@ -14,7 +14,7 @@ from .demo import load_fixture
 from .repositories import Repository, RepositoryError
 from .replay import SCHEMAS, make_record, publish_records, verify_recordings
 from .gateways import GatewayUnavailable, TextRequest
-from .ingestion.importer import MAX_MANIFEST_BYTES, import_tickets
+from .ingestion.importer import MAX_MANIFEST_BYTES, import_from_directory
 
 EXAMPLE_SCHEMAS = {
     cls.__name__: cls for cls in (
@@ -154,7 +154,8 @@ def main() -> int:
                 raise RepositoryError("MANIFEST_TOO_LARGE", "Manifest превышает 1 МиБ.", 413)
             settings = Settings()
             repository = Repository(settings.repo_path(settings.app_db_path))
-            result = import_tickets(manifest, dry_run=args.dry_run, repository=repository)
+            result = import_from_directory(manifest, args.manifest.absolute().parent, settings=settings,
+                                           dry_run=args.dry_run, repository=repository)
             print(result.model_dump_json())
             return 1 if isinstance(result, schemas.ImportPreview) and not result.can_commit else 0
         elif args.command == "verify-recordings":
@@ -214,7 +215,8 @@ def main() -> int:
     except (ValidationError, ValueError, KeyError, TypeError, AttributeError, OSError, RepositoryError, GatewayUnavailable, sqlite3.Error, RuntimeError) as exc:
         # Не выводим ValidationError целиком: он может включать входные данные.
         code = exc.code if isinstance(exc, (RepositoryError, GatewayUnavailable)) else "COMMAND_FAILED"
-        message = str(exc) if isinstance(exc, GatewayUnavailable) else "Команда не завершена. Проверьте файл, контракт и доступ к базе."
+        message = (exc.message if isinstance(exc, RepositoryError) else str(exc) if isinstance(exc, GatewayUnavailable)
+                   else "Команда не завершена. Проверьте файл, контракт и доступ к базе.")
         print(f"{code}: {message}", file=sys.stderr)
         return 1
 

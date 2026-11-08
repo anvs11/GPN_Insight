@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 
@@ -116,11 +117,12 @@ def test_size_limits_are_413_in_both_modes(client, manifest, kind, preview, monk
         monkeypatch.setattr(imports_api, "MultipartParser", lambda *a, **k: pytest.fail("Oversized body reached parser"))
     else:
         if kind == "manifest": parts = [(b"manifest", b"x" * (imports_api.MAX_MANIFEST_BYTES + 1), None)]
-        elif kind == "part": parts.append((b"files", b"x" * (imports_api.MAX_PART_BYTES + 1), b"synthetic.bin"))
+        elif kind == "part": parts.append((b"files", b"x" * (imports_api.MAX_PART_BYTES + 1), b"synthetic.wav"))
         elif kind == "headers": parts = [(b"manifest", b"{}", b"x" * (imports_api.MAX_PART_HEADER_BYTES + 1))]
         elif kind in {"parts", "fields", "files"}:
-            monkeypatch.setattr(imports_api, "MAX_PARTS", 12 if kind != "parts" else 8)
-            parts = [(b"manifest", b"{}", None if kind != "files" else b"a.json")] * 9
+            count = {"parts": imports_api.MAX_PARTS, "fields": imports_api.MAX_FIELDS, "files": imports_api.MAX_FILES}[kind] + 1
+            if kind == "files": monkeypatch.setattr(imports_api, "MAX_PARTS", count + 1)
+            parts = [(b"manifest", b"{}", None if kind == "fields" else b"a.json")] * count
         body = multipart(parts)
     before = client.app.state.repository.path.read_bytes()
     response = client.post("/api/v1/imports" + ("?dry_run=true" if preview else ""), headers=HEADERS, content=body)
@@ -219,7 +221,7 @@ def test_actual_receive_limit_stops_before_reading_more_or_creating_parser():
             yield b"x"
             pytest.fail("Read continued after body limit")
     with pytest.raises(imports_api.ImportRequestError) as exc:
-        asyncio.run(imports_api._read_body(RequestStream()))
+        asyncio.run(imports_api._read_body(RequestStream(), BytesIO()))
     assert exc.value.status_code == 413
 
 
@@ -257,7 +259,7 @@ def test_disconnected_stream_never_reaches_multipart_or_commit():
             yield b"--synthetic-boundary\r\n"
             raise ClientDisconnect()
     with pytest.raises(imports_api.ImportRequestError) as exc:
-        asyncio.run(imports_api._read_body(RequestStream()))
+        asyncio.run(imports_api._read_body(RequestStream(), BytesIO()))
     assert exc.value.code == "IMPORT_BODY_INCOMPLETE" and exc.value.status_code == 422
 
 
