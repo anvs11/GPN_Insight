@@ -1,4 +1,4 @@
-"""Общая проверка текстового manifest, preview и атомарная регистрация."""
+"""Общая проверка manifest/медиа, preview и атомарная регистрация SQLite."""
 
 import json
 import math
@@ -7,11 +7,13 @@ from collections.abc import Collection
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from ..config import Settings
 from ..repositories import Repository, RepositoryError
-from ..schemas import DatasetRegistration, ImportCounts, ImportIssue, ImportPreview, ImportResult, TicketInput
+from ..schemas import DatasetId, DatasetRegistration, ImportCounts, ImportIssue, ImportPreview, ImportResult, TicketInput
+from ..security import MAX_MEDIA, checked_open, validate_filename, validate_upload
+from .media_files import ImportWorkspace, StagedUpload, finalize_import_files, open_import_workspace
 
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_JSON_DEPTH = 32
@@ -83,7 +85,7 @@ def _check_unicode(value: object) -> None:
         raise ManifestError("JSON_UNICODE_INVALID", "JSON содержит некорректный Unicode. Исправьте текстовые значения.") from exc
 
 
-def _parse_manifest(manifest: bytes | str) -> DatasetRegistration:
+def _parse_manifest(manifest: bytes | str) -> tuple[str, bool, list[TicketInput]]:
     try:
         if isinstance(manifest, bytes):
             raw = manifest
@@ -121,7 +123,8 @@ def _parse_manifest(manifest: bytes | str) -> DatasetRegistration:
 
     sources: set[str] = set()
     asset_ids: set[str] = set()
-    has_media = False
+    parsed_tickets: list[TicketInput] = []
+    names: set[str] = set()
     for index, item in enumerate(tickets):
         field = f"tickets.{index}"
         if not isinstance(item, dict) or not isinstance(item.get("created_at"), str):
@@ -139,18 +142,22 @@ def _parse_manifest(manifest: bytes | str) -> DatasetRegistration:
         if ticket.source_id in sources:
             raise ManifestError("SOURCE_ID_DUPLICATE", "source_id внутри набора должны быть уникальны.", field + ".source_id")
         sources.add(ticket.source_id)
+        parsed_tickets.append(ticket)
         for asset in ticket.assets:
             if asset.asset_id in asset_ids:
                 raise ManifestError("ASSET_ID_DUPLICATE", "asset_id должны быть уникальны во всём наборе.", field + ".assets")
             asset_ids.add(asset.asset_id)
-            has_media = True
-    if has_media:
-        raise ManifestError("MEDIA_NOT_SUPPORTED", "В этом этапе поддержан только текст. Уберите вложения; медиаимпорт ещё не подключён.", "tickets")
+            key = validate_filename(asset.path)
+            if key in names:
+                raise ManifestError("FILE_NAME_DUPLICATE", "Имена вложений должны быть уникальны во всём наборе, включая регистр и Unicode.", field + ".assets")
+            names.add(key)
+    if len(asset_ids) > MAX_MEDIA:
+        raise RepositoryError("MEDIA_FILE_LIMIT_EXCEEDED", "Допустимо не более 30 медиафайлов.", 413)
     try:
-        # Оболочка — подмножество готового контракта; собственные DTO не создаём.
-        return DatasetRegistration.model_validate(value)
+        dataset_id = TypeAdapter(DatasetId).validate_python(value["dataset_id"])
     except ValidationError as exc:
         raise ManifestError("MANIFEST_INVALID", "Проверьте dataset_id: 1–64 латинских буквы, цифры, дефис или подчёркивание.", "dataset_id") from exc
+    return dataset_id, value["synthetic"], parsed_tickets
 
 
 def _invalid(issue: ImportIssue, dataset_id: str | None = None) -> ImportPreview:
@@ -160,11 +167,12 @@ def _invalid(issue: ImportIssue, dataset_id: str | None = None) -> ImportPreview
 
 def import_tickets(
     manifest: bytes | str,
-    assets: Collection[object] = (),
+    assets: Collection[StagedUpload] = (),
     dry_run: bool = False,
     *,
     repository: Repository | None = None,
     registration_id: str | None = None,
+    workspace: ImportWorkspace | None = None,
 ) -> ImportPreview | ImportResult:
     """Preview читает SQLite; фиксация повторяет проверку и использует общий guard.
 
@@ -173,17 +181,30 @@ def import_tickets(
     """
     if type(dry_run) is not bool:
         raise RepositoryError("IMPORT_MODE_INVALID", "Параметр dry_run должен быть true или false.", 422)
-    if assets:
-        issue = ImportIssue(code="MEDIA_NOT_SUPPORTED", message="Переданные файлы пока не поддержаны. Для текстового импорта не передавайте assets.")
-        if dry_run:
-            return _invalid(issue)
-        raise RepositoryError(issue.code, issue.message, 422)
     try:
-        batch = _parse_manifest(manifest)
+        dataset_id, synthetic, tickets = _parse_manifest(manifest)
+        requested = [asset for ticket in tickets for asset in ticket.assets]
+        if assets and (not isinstance(workspace, ImportWorkspace) or any(not isinstance(a, StagedUpload) for a in assets)):
+            raise RepositoryError("MEDIA_WORKSPACE_REQUIRED", "Файлы должен подготовить сервер в текущем workspace.", 422)
+        supplied = {a.original_filename: a for a in assets}
+        if len(supplied) != len(assets) or {a.path for a in requested} != supplied.keys():
+            raise RepositoryError("MEDIA_FILES_MISMATCH", "Для каждого вложения manifest передайте ровно один файл с точным именем, без лишних файлов.", 422)
+        if requested and (workspace is None or workspace.dry_run != dry_run):
+            raise RepositoryError("MEDIA_WORKSPACE_REQUIRED", "Workspace должен соответствовать режиму импорта.", 422)
+        if requested and repository is not None and repository.path.resolve() != workspace.repository.path.resolve():
+            raise RepositoryError("MEDIA_WORKSPACE_INVALID", "Workspace должен относиться к текущей базе.", 422)
+        if requested:
+            workspace.check_storage()
+        materials = [validate_upload(supplied[a.path], a, workspace) for a in requested]
+        batch = DatasetRegistration(dataset_id=dataset_id, synthetic=synthetic, tickets=tickets, materials=materials)
     except ManifestError as exc:
         if dry_run:
             return _invalid(exc.issue)
         raise RepositoryError(exc.issue.code, exc.issue.message, 422) from None
+    except RepositoryError as exc:
+        if dry_run and exc.status_code == 422:
+            return _invalid(ImportIssue(code=exc.code, message=exc.message))
+        raise
 
     if repository is None:
         settings = Settings()
@@ -215,12 +236,43 @@ def import_tickets(
     repository.preview_dataset_counts(batch)
     try:
         with repository.import_commit():
-            result = repository.register_dataset(batch, registration_id=request_uuid)
+            result = (finalize_import_files(workspace, batch, repository, request_uuid) if batch.materials
+                      else repository.register_dataset(batch, registration_id=request_uuid))
     except sqlite3.Error:
         raise RepositoryError(
             "IMPORT_DATABASE_UNAVAILABLE",
             "Импорт не подтверждён из-за ошибки базы. Проверьте её состояние и повторите тот же набор.",
             503,
         ) from None
+    except OSError:
+        raise RepositoryError("IMPORT_STORAGE_UNAVAILABLE", "Файлы не подтверждены. Проверьте доступ к хранилищу и результат импорта; повтор набора безопасен.", 503) from None
     # register_dataset завершил commit; выход из guard не является DB-транзакцией.
     return result
+
+
+def import_from_directory(manifest: bytes | str, directory, *, settings: Settings,
+                          repository: Repository, dry_run: bool) -> ImportPreview | ImportResult:
+    """CLI выбирает только перечисленные файлы; общий importer повторно проверяет всё."""
+    try:
+        _, _, tickets = _parse_manifest(manifest)
+        requested = [asset for ticket in tickets for asset in ticket.assets]
+        if not requested:
+            return import_tickets(manifest, dry_run=dry_run, repository=repository)
+        from .media_files import reconcile_import_storage, save_recovery_report
+        recovery = reconcile_import_storage(repository, settings, read_only=dry_run)
+        if not dry_run:
+            save_recovery_report(recovery)
+        if recovery.issues:
+            raise RepositoryError(recovery.issues[0], "Нужна проверка файлового хранения. Перезапустите сервер для восстановления и повторите набор.", 503)
+        with open_import_workspace(settings, repository, dry_run=dry_run) as workspace:
+            for asset in requested:
+                with checked_open(directory / asset.path, directory) as source:
+                    workspace.stage_stream(asset.path, source)
+            return import_tickets(manifest, assets=workspace.uploads, dry_run=dry_run,
+                                  repository=repository, workspace=workspace)
+    except ManifestError:
+        return import_tickets(manifest, dry_run=dry_run, repository=repository)
+    except RepositoryError as exc:
+        if dry_run and exc.status_code == 422:
+            return _invalid(ImportIssue(code=exc.code, message=exc.message))
+        raise

@@ -1,5 +1,7 @@
 # API тем и решений — передача участнику 4
 
+Запрос U4 об импорте (07.11.2026): текстовые preview/commit/history уже в main 60eedf3; локальное media-расширение описано в [U1_MEDIA_HANDOFF.md](U1_MEDIA_HANDOFF.md) и [IMPORT_HTTP.md](IMPORT_HTTP.md). Публикация media, binary-source API и браузерная приёмка ещё не выполнены. Контракт источников/provenance для U2 — [MEDIA_ANALYSIS_HANDOFF.md](MEDIA_ANALYSIS_HANDOFF.md).
+
 Актуализация 2026-11-07: GET списка/карточки поддерживает согласованные фильтры/период, `period_stats` — новое nullable поле, `stats` остаётся all-time. Добавлен PATCH /topics/{id}/passport с version/passport_version/author/reason, history через changes и 409. Полные тела/примеры/команды — [SERVER_COMPLETION.md](SERVER_COMPLETION.md); 587 backend tests и реальный HTTP/CLI/restart прошли. 14 workflow-примеров и 38 schemas экспортируются прежними CLI-командами. UI новых действий не менялся; прежние записи об unsupported-фильтрах ниже относятся к этапу 1.
 
 Текущий серверный срез 2026-11-07: POST /review-items/{id}/resolve (+alias /reviews), GET history, полный PATCH статусов, POST merge-preview/merge/exclude, GET changes и Markdown GET /reports (+alias /report). Request/response, строгие версии, повторы и реальные команды — [HUMAN_WORKFLOW.md](HUMAN_WORKFLOW.md), 11 synthetic JSON-примеров — data/contracts/workflow-examples.json. 515 backend-тестов, HTTP/CLI/restart и сохранность данных проверены. UI этих действий ещё не подключён и остаётся задачей U4; нижние описания минимального этапа исторические.

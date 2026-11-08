@@ -1,5 +1,9 @@
 # Текстовая нормализация U1
 
+Будущая media-интеграция: [существующие DTO, source/version/material и provenance](MEDIA_ANALYSIS_HANDOFF.md). Этот handoff не снимает текущие media-ограничения и не вводит новый runtime-профиль.
+
+Граница после media import U1, 2026-11-07: HTTP/CLI теперь могут зарегистрировать проверенные медиа. TextNormalizer по-прежнему возвращает MEDIA_NORMALIZATION_NOT_SUPPORTED для ticket с assets; его recipe/hash/профиль и код не изменены. Импорт файла не является распознаванием; новый multimodal normalizer/ASR/VL и профиль потребуют отдельной согласованной задачи. Текущий импорт — [IMPORT_HTTP.md](IMPORT_HTTP.md).
+
 Реализованы app/masking.py и app/ingestion/normalizer.py. Для совместной работы с текущим AnalysisService использовать [TEXT_INTEGRATION.md](TEXT_INTEGRATION.md) и build_text_pipeline: он проверяет ошибки документа/цитаты/metadata до публикации. Normalizer сам не вызывает анализ.
 
     normalize_ticket(ticket: TicketInput, *, content_hash: str, source_version: int) -> NormalizedDocument

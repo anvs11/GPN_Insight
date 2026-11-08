@@ -23,3 +23,5 @@ typing-inspection==0.4.5
 typing_extensions==4.16.0
 tzdata==2025.2
 uvicorn==0.34.3
+Pillow==13.0.0
+mutagen==1.48.1

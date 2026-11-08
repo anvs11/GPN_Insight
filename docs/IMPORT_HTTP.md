@@ -1,4 +1,50 @@
-# Текстовый импорт через HTTP и CLI
+# Импорт текста и медиа через HTTP и CLI
+
+## Текущий срез U1 — 2026-11-07
+
+Общий `import_tickets` поддерживает текст и проверенные WAV/MP3/PNG/JPEG. HTTP POST `/api/v1/imports?dry_run=true`, POST `/api/v1/imports`, GET `/api/v1/imports` и прежние ImportPreview/ImportResult/ErrorResponse сохранены. CLI `app.cli import --manifest … [--dry-run]` читает перечисленные простые имена только внутри каталога manifest и вызывает тот же сервис. Схемы, SQLite v3 и source_content_hash не менялись. Реализация и результаты — [.agent/U1_MEDIA_IMPORT.md](../.agent/U1_MEDIA_IMPORT.md), передача — [U1_MEDIA_HANDOFF.md](U1_MEDIA_HANDOFF.md).
+
+Manifest по-прежнему содержит ровно dataset_id/synthetic/tickets. HTTP передаёт один manifest (поле либо file-part) и повторяющиеся files с точными именами из assets.path; порядок частей произвольный. Имя manifest не используется как путь. Имена медиа должны быть NFC, без каталогов/управляющих символов/Windows reserved names; коллизии casefold отвергаются. В CLI соседние файлы, не перечисленные в manifest, не читаются. Отсутствующие/лишние переданные файлы, unsafe links, неверные сигнатуры/метаданные и MIME manifest отклоняют весь набор. MIME клиента не является доказательством; bytes проверяются wave, Pillow и mutagen.
+
+Размеры определены в двоичных единицах: МиБ=1 048 576 байт. Константы media/body находятся в `app/security.py`, manifest/tickets/depth — в прежнем importer:
+
+| Ограничение | Значение |
+|---|---|
+| Тикеты / manifest / JSON depth | 100 / 1 048 576 байт / 32 |
+| Медиа / сумма их байтов | 30 / 52 428 800 байт (50 МиБ) |
+| Фактическое HTTP-тело | 54 525 952 байт (52 МиБ) |
+| WAV/MP3 | 10 485 760 байт, до 60 секунд |
+| PNG/JPEG | 5 242 880 байт, до 25 000 000 пикселей |
+| Multipart parts / file-parts / fields | 31 / 31 / 1, включая manifest |
+| Заголовки части / boundary / chunk | 8 192 байта / 70 ASCII-байт / 32 768 байт |
+
+HTTP ограниченно сохраняет сырой конверт в собственный временный файл **до создания multipart parser**, затем разбирает его порциями с отдельными ограничениями файлов. Content-Length не заменяет фактический счётчик. Тело не накапливается в 52-МиБ bytearray; Request.form/UploadFile не используются. После parser.finalize обязателен on_end. Лимиты image/audio и суммы действуют также при записи staged-файлов. Дополнительный дисковый проход ограничен: сырой конверт + extracted media до 102 МиБ, резерв со служебным JSON около 104 МиБ на запрос.
+
+Preview создаёт только собственные временные файлы и после нормального завершения убирает их; uploads/owner marker/SQLite/import_log не меняются. Оно не сохраняет сессию подтверждения, не резервирует counts и не вызывает моделей. Commit — новый полный запрос с новым серверным UUID и повторной проверкой. Браузер должен пересоздать FormData с текущими файлами и сбросить preview при смене выбора. При потере ответа новый запрос безопасен и может вернуть unchanged.
+
+Staging: `APP_TMP_ROOT/imports/<request_uuid>/`; final: `APP_UPLOAD_ROOT/requests/<request_uuid>/<file_uuid>.<extension>`. Клиентские имена, source/asset/dataset ID в server-пути не включаются. Корни должны быть раздельными и на одном диске; файловая система должна поддерживать используемый атомарный hard-link transfer (проверено APFS, Windows runtime не проверен). Новые final-файлы размещаются до короткого register_dataset под прежним import_commit, хеш проверяется до SQLite commit. После регистрации удаляются только доказанно собственные пути, которых нет в полном registered_materials всех продуктов/версий. Новая лишняя копия не заменяет старый канонический файл.
+
+Журнал фиксирует planned-пути и идентичность эксклюзивно созданного final-каталога. При неопределённом commit/нечитабельном реестре/подозрительном журнале файлы сохраняются для сверки. До приёма HTTP startup после initialize/interrupt_active_runs делает recovery; проблемы видны в `health.integration_errors` и локальных `var/reports/import-recovery-*.json` с asset ID/кодами. Непустое legacy storage без owner-маркера и roots другой БД автоматически не присваиваются. Один DB-path соответствует одной паре roots; перенос/замена БД требует проверки принадлежности. Media CLI запускается при остановленном сервере и других CLI: guard process-local. CLI dry-run делает только read-only сверку; после прерывания внутри SQLite сначала нужен штатный startup/init-db существующей БД для восстановления hot journal, без сброса данных.
+
+Ошибки набора: preview 200 invalid/can_commit=false, commit 422. Размеры/количество — 413 в обоих режимах; query — 422; RUN_ACTIVE/IMPORT_ACTIVE/registration conflict — 409; недоступное storage/целостность — 503. `IMPORT_CLEANUP_PENDING` означает необходимость проверить результат: DB commit мог уже пройти, повтор безопасен, зарегистрированные файлы не удаляются. Все сообщения безопасные и русские; первая ошибка даёт invalid=1, не partial import и не обещание полного списка нарушений. Отсутствие БД в текстовом preview сохраняет прежний invalid-ответ без создания БД.
+
+Зафиксированы Pillow==13.0.0 и mutagen==1.48.1 по разрешению пользователя выбрать и проверить pins; остальные 25 версий сохранены. Установка/полный pytest выполнены на macOS ARM64/Python 3.13.0: **652 passed, 1 прежний warning**, pip check без конфликтов, общие/HTTP/proposal/workflow-примеры валидны. Реальные HTTP/CLI/restart и отдельные process-stop recovery прошли. Windows, frontend/браузер и live-модели не проверялись. MP3 разбирается как контейнер/метаданные, полное декодирование каждой возможной порчи не гарантируется; PNG/JPEG проверяются verify+load. Распознавание, медийный replay и binary GET assets не добавлены; Normalizer/Pipeline сохраняют явные media-отказы.
+
+Безопасное воспроизведение из backend:
+
+```sh
+../.venv/bin/python -X utf8 -m scripts.check_media_import
+../.venv/bin/python -X utf8 -m pytest -q
+../.venv/bin/python -m pip check
+```
+
+Скрипт использует отдельные SQLite/uploads/tmp и свой localhost, рабочая БД не затрагивается. Синтетические данные — [data/media-import](../data/media-import/README.md); обновлённые transport-примеры — `data/contracts/import-http-examples.json`. Точные report-paths и команды сохранены в ExecPlan.
+
+Ревью перед передачей: повреждённый owner/реестр возвращает безопасный 503, чрезмерно вложенный journal сохраняется с ошибкой recovery; проверка повторного материала ограничена текущим продуктом, cleanup по-прежнему читает весь реестр. Для переносимости отвергаются также reserved basenames с пробелом перед расширением. Ручные curl/CLI подтверждены отдельно от скрипта: preview/commit/repeat, 422/503 без изменения SQLite, delta, решение и restart. Команды и ожидаемые ответы — [MEDIA_IMPORT_CHECK.md](MEDIA_IMPORT_CHECK.md).
+
+## Архив исходного текстового среза 2026-11-06
+
+Следующие абзацы сохраняют историю проверки text-only реализации. Старые 1 МиБ+64 КиБ/8 parts и запрет files ниже не являются текущими лимитами; актуальные правила приведены выше.
 
 Реализовано 2026-11-06 на основе готового import_tickets, ветка feat/text-import-api от 72606af. Она зависит от предыдущего U1-среза feat/u1-text-integration, ещё не слитого в main. Эта задача не добавляет frontend, media, SQL/DTO/guard, модели или конфигурацию анализа.
 

@@ -25,6 +25,9 @@ def health(request: Request) -> Health:
     binding_error = getattr(request.app.state, "text_pipeline_error", None)
     if not result.pipeline_ready and binding_error:
         result.integration_errors.append(binding_error)
+    storage = getattr(request.app.state, "import_storage_report", None)
+    if storage:
+        result.integration_errors.extend(storage.issues)
     return result
 
 

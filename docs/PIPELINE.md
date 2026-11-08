@@ -1,5 +1,9 @@
 # Запуски, checkpoints и строгий текстовый replay
 
+Будущая media-интеграция: [существующие DTO, source/version/material и provenance](MEDIA_ANALYSIS_HANDOFF.md). Этот handoff не снимает текущие media-ограничения и не вводит новый runtime-профиль.
+
+Граница media import U1, 2026-11-07: источники с проверенными WAV/MP3/PNG/JPEG могут импортироваться и храниться, startup сверяет их файлы с полным реестром. Pipeline, Normalizer, checkpoints и модельные профили в этой задаче не менялись; MEDIA_PIPELINE_NOT_IMPLEMENTED остаётся явным отказом для assets. Успешный импорт не превращает ошибку анализа в «потребностей нет» и не означает готовность медийного replay. Правила хранения/приёмки — [IMPORT_HTTP.md](IMPORT_HTTP.md).
+
 Текущий независимый серверный этап завершён: полный текстовый процессный record/verify с фиксированными initial empty state/clock/profile, 9 действиями и 11 точными authored записями. Паспорт изменяется обычной операцией до delta; review/exclude/merge/решения/reopen проверяются одним потоком, unknown даёт REPLAY_RECORD_MISSING. Публикация активного сценарного указателя только после capture и отдельного strict verify, с checksum/backup/защитой версии. Live model record, media и качество не подменяются этим прогоном. Команды и границы — [SERVER_COMPLETION.md](SERVER_COMPLETION.md); 587 tests/реальные HTTP/CLI/restart прошли.
 
 Дополнение после согласования с U2: cold-start реализован в AnalysisService, политика профиля v3. На пустом каталоге нужен явный provisional_no_match, затем валидный ProposedTopic с двумя metadata. Ошибка/отсутствующая запись не создаёт тему или успешный assignment checkpoint; повтор переиспользует extraction. Проверены 541 tests и настоящий HTTP/restart. Схемы/HTTP/SQLite v3 прежние. Текущая передача — [TEAM_INTEGRATION.md](TEAM_INTEGRATION.md); прежнее ограничение cold-start ниже историческое.
