@@ -165,7 +165,7 @@ describe('Карточка темы и подтверждающие источн
     render(<SourceViewer sourceId="SYNTHETIC-001" onClose={() => {}} />)
     await screen.findByText('Метки сервера (мс): 1000 — 2500')
     expect(screen.getByText(/ASR_PARTIAL/)).toBeTruthy()
-    expect(screen.getByText(/Просмотр файлов пока недоступен/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Открыть медиа synthetic-audio' })).toBeTruthy()
     expect(screen.queryByRole('link')).toBeNull()
   })
 

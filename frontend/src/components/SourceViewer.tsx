@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import type { EvidenceRef, SourceDetail } from '../api-types'
 import { formatTopicDate } from '../topic-labels'
+import { SourceProcessing } from './SourceProcessing'
+import { MediaAsset } from './MediaAsset'
 
 export function SourceViewer({ sourceId, evidence, onClose }: {
   sourceId: string; evidence?: EvidenceRef; onClose: () => void
@@ -58,13 +60,16 @@ export function SourceViewer({ sourceId, evidence, onClose }: {
         <div><dt>Дата обращения (МСК)</dt><dd>{formatTopicDate(source.ticket.created_at)}</dd></div>
         <div><dt>Продукт</dt><dd>{source.ticket.product_id}</dd></div></dl>
       {source.requires_analysis && <p className="topic-notice">Источник ожидает анализа. Данные темы могут быть неполными.</p>}
+      {source.manual_recheck_required && <p className="topic-notice">Ручное исправление требует повторной проверки после обновления анализа.</p>}
+      {sourceIsCurrent && source.current_result_revision && <SourceProcessing key={source.current_result_revision} source={source} />}
+      {!source.current_result_revision && <p>Отдельной оценки категории/приоритета для этого источника нет. Отсутствие оценки не означает обычный приоритет.</p>}
       {evidence && <div className="topic-notice"><p>Цитата из карточки · Фрагмент: {evidence.fragment_id}</p><blockquote>{evidence.quote}</blockquote>
         <p>{!sourceIsCurrent ? 'Сверка цитаты с текущей версией источника не подтверждена. Дождитесь успешного обновления источника.'
           : quoteFound ? 'Цитата найдена в указанном фрагменте текущего источника. Это проверка совпадения текста, а не качества вывода.'
             : 'Цитата не подтверждена текущим фрагментом. Источник мог измениться или обработан не полностью. Обновите карточку и проверьте основание.'}</p>
       </div>}
       <h5>Исходный текст</h5>
-      {source.synthetic ? <p className="topic-text">{source.ticket.text || 'Исходный текст отсутствует.'}</p>
+      {source.synthetic && source.original_access !== 'restricted' ? <p className="topic-text">{source.ticket.text || 'Исходный текст отсутствует.'}</p>
         : <p>Оригинал несинтетического обращения не показывается: доступ к оригиналам требует отдельного согласования.</p>}
       <h5>Подготовленные фрагменты</h5>
       {source.document === null ? <p>Подготовленного документа пока нет. Это не означает отсутствия потребностей.</p> : <>
@@ -91,7 +96,8 @@ export function SourceViewer({ sourceId, evidence, onClose }: {
       <h5>Вложения</h5>
       {source.ticket.assets.length === 0 ? <p>Вложений нет.</p> : <><ul>{source.ticket.assets.map(asset => <li key={asset.asset_id}>
         {asset.asset_id} · {asset.kind === 'audio' ? 'Аудио' : 'Изображение'} · {asset.mime_type}
-      </li>)}</ul><p>Просмотр файлов пока недоступен. Можно проверить подготовленные фрагменты и ошибки обработки.</p></>}
+        {sourceIsCurrent && <MediaAsset key={`${source.source_version}-${asset.asset_id}`} source={source} asset={asset} />}
+      </li>)}</ul>{!sourceIsCurrent && <p>Просмотр файлов доступен после успешного обновления источника.</p>}</>}
     </>}
   </section>
 }
