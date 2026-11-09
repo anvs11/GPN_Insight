@@ -1,5 +1,7 @@
 # GPN Insight
 
+Итоговая приёмка 09.11 после PR #17/#18: [проверки У3/У1, уточнение обезличенности и стабильный показ](docs/FINAL_ACCEPTANCE.md). Новый изолированный показ: из backend `..\.venv\Scripts\python.exe -X utf8 -m scripts.prepare_acceptance_demo`. Пять synthetic источников, три темы, повторяемость, review, partial/retry и сохранённое решение; только строгий authored replay. В источнике добавлен возраст от даты создания, без трактовки как SLA.
+
 UI media/weekly 09.11: подключены preview/commit/repeat с файлами, просмотр synthetic медиа, покрытие/оценки/приоритеты и формирование недельного отчёта. [Пошаговый показ в двух терминалах](docs/FRONTEND_MEDIA_WEEKLY.md). UI-срез ведётся в feat/frontend-media-weekly от опубликованного backend ac3ae94; merge в main выполняет пользователь.
 
 Срез 09.11 A4–A7: подключены partial/media replay Pipeline, SQLite v4 с backup/историей ревизий, категории/приоритеты с evidence, сводка завершённой MSK недели и безопасная выдача synthetic медиа. [Контракты и команды команды](docs/PARTIAL_WEEKLY_HANDOFF.md). Быстрая изолированная проверка из backend: `..\.venv\Scripts\python.exe -X utf8 -m scripts.check_partial_weekly_integration`. Live и новые UI media/report экраны не объявлены готовыми; нижние описания прежних срезов исторические.

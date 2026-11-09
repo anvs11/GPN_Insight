@@ -4,6 +4,7 @@ import type { EvidenceRef, SourceDetail } from '../api-types'
 import { formatTopicDate } from '../topic-labels'
 import { SourceProcessing } from './SourceProcessing'
 import { MediaAsset } from './MediaAsset'
+import { SourceAge } from './SourceAge'
 
 export function SourceViewer({ sourceId, evidence, onClose }: {
   sourceId: string; evidence?: EvidenceRef; onClose: () => void
@@ -58,6 +59,7 @@ export function SourceViewer({ sourceId, evidence, onClose }: {
       <p>Происхождение: {source.data_origin === 'authored' ? 'подготовлено вручную (authored)' : 'импортировано (imported)'}.</p>
       <dl className="topic-detail-stats"><div><dt>Версия источника</dt><dd>{source.source_version}</dd></div>
         <div><dt>Дата обращения (МСК)</dt><dd>{formatTopicDate(source.ticket.created_at)}</dd></div>
+        <SourceAge createdAt={source.ticket.created_at} />
         <div><dt>Продукт</dt><dd>{source.ticket.product_id}</dd></div></dl>
       {source.requires_analysis && <p className="topic-notice">Источник ожидает анализа. Данные темы могут быть неполными.</p>}
       {source.manual_recheck_required && <p className="topic-notice">Ручное исправление требует повторной проверки после обновления анализа.</p>}

@@ -16,6 +16,9 @@ GPN Insight анализирует обращения, выделяет потр
 
 ## Progress
 
+- [x] (2026-11-09, итоговая приёмка У3/часть У1) Проверена чистая main 3503dba с merge PR #17/#18; работа в feat/final-integration-safety. Добавлены возраст обращения без изменения hash/SQLite, 14 media safety regression cases и отдельная разнообразная synthetic/authored фикстура (5 источников, 3 темы, 1 review, partial8/9→9/9). Полное обезличивание собственного сервиса не требуется по ответу 14 вебинара; текущая synthetic-only/read policy не снята. План .agent/FINAL_INTEGRATION_SAFETY.md, приёмка/запуск docs/FINAL_ACCEPTANCE.md.
+- [x] (2026-11-09, итоговые проверки) 758 backend passed/4 Windows symlink skipped/1 прежний Starlette warning; 332 frontend passed, build/lint, pip check и contract checks прошли. Настоящие HTTP media import, partial interrupt/restart, frontend HTTP4, text pipeline, server completion и human workflow пройдены. Новый demo ordinary HTTP/restart: var/acceptance-demo-0b5f5c3b94914dcb84a2048955f80d80/http-acceptance.json. Это не визуальный браузерный тест; browser host по-прежнему недоступен. Новые изменения не опубликованы этим этапом.
+
 - [x] (2026-11-09, публикация/У4) Проверенные 70 файлов backend/плана опубликованы ac3ae94 в origin/feat/weekly-partial-media. Merge делает пользователь. По согласованию с У4 взята его часть: отдельная feat/frontend-media-weekly в том же репозитории, без клона/переключения main/перезаписи .env. MediaImportPanel, synthetic viewer, coverage/assessments/topic summary и WeeklyReport подключены к настоящим API.
 - [x] (2026-11-09, UI функциональная приёмка) 284 frontend tests, TypeScript/build/lint; 4 React/jsdom→настоящий backend HTTP→SQLite→UI сценария прошли: var/frontend-media-http-c2e56844c7b1455da12f47822e72fe75/result.json. Preview/commit/repeat, errors/unknown, binary/audio, summary/week, retry с сохранённым решением. Изолированный двухтерминальный показ подготовлен, frontend5173/backend8000 отвечали200; свои процессы остановлены. План .agent/FRONTEND_MEDIA_WEEKLY.md, команды docs/FRONTEND_MEDIA_WEEKLY.md. Backend runtime/исходные text/review формы/pins/private данные сохранены. UI ещё не закоммичен/не pushed.
 - [ ] (2026-11-09, UI визуальная приёмка) Browser Use снова недоступен: The browser access host is unavailable. Обход не выполнялся. Требуется визуальная проверка по готовым командам; HTTP/jsdom не подтверждают пиксели/воспроизведение звука. Новые UI экраны функционально подключены, старые «передать подключение У4» ниже исторические.
@@ -45,6 +48,8 @@ GPN Insight анализирует обращения, выделяет потр
 
 ## Surprises & Discoveries
 
+09.11.2026, итоговая приёмка: новый разнообразный демонабор действительно даёт одну повторяющуюся тему по двум source_id, три темы при support_level=all и один неясный review. Ранее пустой default список объяснялся одним источником, а не отсутствием интеграции. Authored ответы строятся только отдельной подготовкой; штатный backend использует ReplayGateway. ASR/VL injection cases проверяют недоверенный текст, не устойчивость живой модели в звуке/пикселях.
+
 2026-11-09, A4–A7: хранить только текущие fragments нельзя — прежние passport/override evidence требуют исторических записей. Revision publication добавляет immutable history и деактивирует needs/links без удаления. Снятие active связи увеличивает topic.version и выставляет visible manual recheck; status/owner/паспорт/DecisionEvent не переписываются. Контрольный rollback после изменения links/overrides откатил всё. Replay подтверждает лишь точные известные requests: пользовательская правка каталога может законно потребовать новый authored record.
 
 2026-11-09, A1–A3: MergePreview тоже содержит два TopicDetail со вложенными sources. Одна защита GET source/card не закрывала этот путь: regression на synthetic nonsynthetic-marked записи упала с raw sentinel до подключения public projector к merge-preview и прошла после. DTO semantic revision не заменяет SQL revision publication: отдельный Normalizer намеренно не пишет legacy documents/needs.
@@ -60,6 +65,8 @@ GPN Insight анализирует обращения, выделяет потр
 Task.pdf, стр. 5: основной документ — doc/docx/pdf до 15 000 символов, ответы 1–4 и 6; пункт 5 о метриках — отдельный .md; презентация примерно 10 слайдов. Выжимка называет .md с промптом. Готовить рабочие материалы обоих типов, уточнить конечный комплект; не использовать приложения/ссылки для обхода лимита. Стр. 4 указывает Qwen 3.8, Qwen-ASR, Qwen-VL и хранение исходных тикетов/звонков в системе один год. Это не подтверждённый API/model_id или срок нашего производного хранилища.
 
 ## Decision Log
+
+09.11.2026, пользователь/У3: выполнить итоговую часть У3 и доступную часть У1 после merge У4. Обезличенность исходного хранилища — допущение кейса; корпоративный доступ/разрешённый набор остаются отдельными. Не менять synthetic-only guards ради демо. Возраст от created_at считается в UI, не хранится и не называется временем незакрытого обращения: upstream-статус закрытия неизвестен. Новый demo использует отдельный UUID-каталог и записи известных входов без сетевого fallback. Визуальный редизайн — после референсов.
 
 2026-11-09, пользователь/У3 после подтверждения У2: A4–A7 выполняются в текущей ветке без клона/.env/сброса. У2 extract/assign/propose не переписываются; классификация отдельным versioned prompt/result. Partial profile и все hashes явны, SQLite migration v4 с backup. Неделя формируется по запросу, synthetic originals закрыты для nonsynthetic, UI передаётся У4. Отказ Computer Use не обходить и не выдавать HTTP за клики в браузере.
 
@@ -80,6 +87,8 @@ Task.pdf, стр. 5: основной документ — doc/docx/pdf до 15 
 2026-11-09, U3: данные 40 × 10–12 и рыночные benchmarks — источники для сценария, не статистика компании. Сохранить различие часов, стоимости ресурсов и денежной экономии. Рынок требует источника/даты/единицы/роли/переносимости; неизвестные факты о компании остаются неизвестными.
 
 ## Outcomes & Retrospective
+
+Итоговая функциональная приёмка У3 и доступные синтетические safety-проверки У1 завершены: тесты/HTTP/import/restart подтвердили сохранность данных и решений, повтор без дублей, partial retry и явные ошибки. Существенных дефектов существующего runtime не выявлено; изменены UI возраста и процедуры/тестовые примеры. Полноценный визуальный маршрут остаётся непроверенным инструментом из-за browser host; не считать его завершённым по HTTP4. Независимое качество У2/live/промышленная безопасность/конкурсные материалы и редизайн не заявляются выполненными. Рабочие .env/SQLite сохраняются, push/merge новой ветки не выполняются без нового поручения.
 
 После серверного ac3ae94 согласованная часть У4 также реализована: media import/viewer/coverage/assessment/weekly UI на отдельной ветке, 284 tests/build/lint и реальные HTTP4 прошли. Визуальный инструмент недоступен; ручной показ описан, свои серверы остановлены. Следующая работа команды — визуальная приёмка/удобство/разнообразный synthetic dataset/evaluation/материалы, не повторное переписывание API.
 
