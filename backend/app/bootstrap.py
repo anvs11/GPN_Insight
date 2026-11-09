@@ -42,10 +42,18 @@ def _load_profile(settings: Settings) -> ProcessingProfile:
         values = json.loads(raw.decode("utf-8-sig"), object_pairs_hook=_unique_object, parse_constant=_reject_constant)
         stored = ProcessingProfile.model_validate(values)
         canonical(stored.model_dump()).encode("utf-8")
-        parameters = {k: v for k, v in stored.parameters.items() if k not in {"normalization_hash", "text_integration"}}
+        parameters = {k: v for k, v in stored.parameters.items() if k not in {"normalization_hash", "text_integration", "partial_media"}}
         attempts = stored.parameters["text_integration"]["max_attempts"]
-        rebuilt = build_text_profile(settings, model_id=stored.model_id,
-            recording_set_version=stored.recording_set_version, parameters=parameters, max_attempts=attempts)
+        if "partial_media" in stored.parameters:
+            from .partial_integration import build_partial_profile
+            from .processing_schemas import MediaProcessingProfile
+            rebuilt = build_partial_profile(settings,
+                media_profile=MediaProcessingProfile.model_validate(stored.parameters["partial_media"]["media_profile"]),
+                model_id=stored.model_id, recording_set_version=stored.recording_set_version,
+                parameters=parameters, max_attempts=attempts)
+        else:
+            rebuilt = build_text_profile(settings, model_id=stored.model_id,
+                recording_set_version=stored.recording_set_version, parameters=parameters, max_attempts=attempts)
     except (KeyError, TypeError, ValueError, RecursionError):
         raise GatewayUnavailable("PROCESSING_PROFILE_INVALID", "Профиль не соответствует ProcessingProfile и текущей политике обработки.") from None
     # Не исправляем старые хеши/лимиты и JSON-типы под текущую реализацию молча.
@@ -56,10 +64,10 @@ def _load_profile(settings: Settings) -> ProcessingProfile:
 
 def _validate_replay(gateway: ReplayGateway, profile: ProcessingProfile, settings: Settings) -> None:
     if (settings.app_replay_model_id != profile.model_id or
-        settings.app_replay_normalization_hash != NORMALIZATION_HASH):
+        settings.app_replay_normalization_hash != profile.parameters["normalization_hash"]):
         raise GatewayUnavailable("REPLAY_PROFILE_CONFLICT", "Настройки replay не совпадают с утверждённым профилем.")
     records = [record for record in gateway.records().values() if
-        record.metadata.model_id == profile.model_id and record.metadata.normalization_hash == NORMALIZATION_HASH]
+        record.metadata.model_id == profile.model_id and record.metadata.normalization_hash == profile.parameters["normalization_hash"]]
     if not records:
         raise GatewayUnavailable("REPLAY_RECORD_MISSING", "В наборе нет записей настроенной модели и нормализации.")
     for record in records:
@@ -85,6 +93,10 @@ def configured_text_pipeline(settings: Settings, gateway: TextGateway) -> tuple[
     try:
         profile = _load_profile(settings)
         _validate_replay(gateway, profile, settings)
+        if "partial_media" in profile.parameters:
+            from .partial_integration import build_partial_pipeline
+            from .repositories import Repository
+            return build_partial_pipeline(gateway, profile, settings, Repository(settings.repo_path(settings.app_db_path))), None
         return build_text_pipeline(gateway, profile, settings), None
     except (GatewayUnavailable, RepositoryError) as exc:
         return None, exc.code

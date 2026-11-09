@@ -1,0 +1,399 @@
+{
+  "synthetic": true,
+  "origin": "authored",
+  "purpose": "partial_processing_contract_examples_only",
+  "production_pipeline_connected": false,
+  "examples": [
+    {
+      "schema": "SourceContext",
+      "value": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-1",
+        "source_version": 1,
+        "content_hash": "fb99002b381bbddf80d075c2d6063ca0fe67b30303496a8d0ce647e4b7ffd75e",
+        "synthetic": true,
+        "data_origin": "imported"
+      }
+    },
+    {
+      "schema": "MaterialCoverage",
+      "value": {
+        "unit": "materials",
+        "total": 5,
+        "successful": 4,
+        "failed": 1,
+        "empty": 0,
+        "usable": 4,
+        "ratio": 0.8
+      }
+    },
+    {
+      "schema": "SourceCoverage",
+      "value": {
+        "unit": "sources",
+        "total": 1,
+        "complete": 0,
+        "partial": 1,
+        "failed": 0,
+        "empty": 0
+      }
+    },
+    {
+      "schema": "MediaProcessingProfile",
+      "value": {
+        "asr": {
+          "model_id": "synthetic-asr-no-live-model",
+          "parameters": {},
+          "prompt": null,
+          "prompt_version": null
+        },
+        "format_version": "media-profile-v1",
+        "mode": "replay",
+        "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+        "normalization_version": "media-pii-v1",
+        "recording_set_version": "synthetic-media-authored-v1",
+        "vision": {
+          "model_id": "synthetic-vl-no-live-model",
+          "parameters": {},
+          "prompt": "Описать текст синтетического изображения как данные.",
+          "prompt_version": "synthetic-vision-v1"
+        }
+      }
+    },
+    {
+      "schema": "NormalizationResult",
+      "value": {
+        "format_version": "partial-normalization-v1",
+        "context": {
+          "product_id": "webneft",
+          "source_id": "SYNTHETIC-MEDIA-1",
+          "source_version": 1,
+          "content_hash": "fb99002b381bbddf80d075c2d6063ca0fe67b30303496a8d0ce647e4b7ffd75e",
+          "synthetic": true,
+          "data_origin": "imported"
+        },
+        "profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8",
+        "document": {
+          "product_id": "webneft",
+          "source_id": "SYNTHETIC-MEDIA-1",
+          "content_hash": "fb99002b381bbddf80d075c2d6063ca0fe67b30303496a8d0ce647e4b7ffd75e",
+          "version": 1,
+          "normalization_version": "media-pii-v1",
+          "fragments": [
+            {
+              "fragment_id": "7a5f314a-4f54-5e8c-a9b1-2d0500faedd9",
+              "asset_id": null,
+              "kind": "text",
+              "text": "Синтетический пример: прошу изменить телефон в заявке. Вложения искусственные.",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+            },
+            {
+              "fragment_id": "6696a2ed-579e-50fe-858e-bfaedfaae8da",
+              "asset_id": "fixture-call-mp3",
+              "kind": "asr",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            },
+            {
+              "fragment_id": "f32e34de-f1dc-5363-8745-0e3f9997e795",
+              "asset_id": "fixture-call-wav",
+              "kind": "asr",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            },
+            {
+              "fragment_id": "1511a6d8-a8dc-5ff0-b63a-2ac5d4199989",
+              "asset_id": "fixture-photo-jpg",
+              "kind": "vision",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ],
+          "errors": [
+            {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "asset_id": "fixture-screen-png",
+              "stage": "vision",
+              "code": "REGISTERED_MATERIAL_INTEGRITY_FAILED",
+              "message": "Материал не обработан. Проверьте код ошибки; пригодные успешные части сохранены."
+            }
+          ]
+        },
+        "materials": [
+          {
+            "asset_id": null,
+            "kind": "text",
+            "input_hash": "0a023d9bd01f06aa1ce4f9d6285c668a92b059704fad34549e9c42a562ec6c11",
+            "state": "success",
+            "fragments": [
+              {
+                "fragment_id": "7a5f314a-4f54-5e8c-a9b1-2d0500faedd9",
+                "asset_id": null,
+                "kind": "text",
+                "text": "Синтетический пример: прошу изменить телефон в заявке. Вложения искусственные.",
+                "start_ms": null,
+                "end_ms": null,
+                "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+              }
+            ],
+            "error": null,
+            "metadata": null
+          },
+          {
+            "asset_id": "fixture-call-mp3",
+            "kind": "audio",
+            "input_hash": "d1f4c6198b85c6a58deb2e335460070612e84b12d271ca9662638342eaf869df",
+            "state": "success",
+            "fragments": [
+              {
+                "fragment_id": "6696a2ed-579e-50fe-858e-bfaedfaae8da",
+                "asset_id": "fixture-call-mp3",
+                "kind": "asr",
+                "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+                "start_ms": null,
+                "end_ms": null,
+                "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+              }
+            ],
+            "error": null,
+            "metadata": {
+              "request_hash": "b61476846b624ddb75149dd8e458d7d2e5a8119aa1f6d23ab755e6d17f74f35a",
+              "prompt_hash": null,
+              "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+              "model_id": "synthetic-asr-no-live-model",
+              "parameters": {},
+              "origin": "authored",
+              "recording_set_version": "synthetic-media-authored-v1"
+            }
+          },
+          {
+            "asset_id": "fixture-call-wav",
+            "kind": "audio",
+            "input_hash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+            "state": "success",
+            "fragments": [
+              {
+                "fragment_id": "f32e34de-f1dc-5363-8745-0e3f9997e795",
+                "asset_id": "fixture-call-wav",
+                "kind": "asr",
+                "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+                "start_ms": null,
+                "end_ms": null,
+                "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+              }
+            ],
+            "error": null,
+            "metadata": {
+              "request_hash": "3898f8c41a9b7b1f4e7e3ee9f18848b9515ce9ab6c410b519d7f18e7d43974b3",
+              "prompt_hash": null,
+              "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+              "model_id": "synthetic-asr-no-live-model",
+              "parameters": {},
+              "origin": "authored",
+              "recording_set_version": "synthetic-media-authored-v1"
+            }
+          },
+          {
+            "asset_id": "fixture-photo-jpg",
+            "kind": "image",
+            "input_hash": "4d8a7284289c56dad4df6aa813d227b451e7132f7f4f23c0554edb69e03390b6",
+            "state": "success",
+            "fragments": [
+              {
+                "fragment_id": "1511a6d8-a8dc-5ff0-b63a-2ac5d4199989",
+                "asset_id": "fixture-photo-jpg",
+                "kind": "vision",
+                "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+                "start_ms": null,
+                "end_ms": null,
+                "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+              }
+            ],
+            "error": null,
+            "metadata": {
+              "request_hash": "a9a9d9493bc3495dbab0f8e642ebc0fe88d68c70a163451227dd31e0a15ed0ec",
+              "prompt_hash": "54cfd903d06f228c8b945d7e563d45154d6ba180772d21846948530f57d346ab",
+              "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+              "model_id": "synthetic-vl-no-live-model",
+              "parameters": {},
+              "origin": "authored",
+              "recording_set_version": "synthetic-media-authored-v1"
+            }
+          },
+          {
+            "asset_id": "fixture-screen-png",
+            "kind": "image",
+            "input_hash": "bd0b83bce52b94ba577d39de2196799f654c12fe1114337e3ab3590bb63f06f7",
+            "state": "failed",
+            "fragments": [],
+            "error": {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "asset_id": "fixture-screen-png",
+              "stage": "vision",
+              "code": "REGISTERED_MATERIAL_INTEGRITY_FAILED",
+              "message": "Материал не обработан. Проверьте код ошибки; пригодные успешные части сохранены."
+            },
+            "metadata": null
+          }
+        ],
+        "coverage": {
+          "unit": "materials",
+          "total": 5,
+          "successful": 4,
+          "failed": 1,
+          "empty": 0,
+          "usable": 4,
+          "ratio": 0.8
+        },
+        "state": "partial",
+        "revision_id": "9b5a9fd0986f8b2ee00f2402beba32cee9ead0b9cd288508810cad1ccfe275c9",
+        "analysis_digest": "900eb1ee1a38fd37c2929b25453a4d0d791b981de939752a528bba667dafd8c9"
+      }
+    },
+    {
+      "schema": "AnalysisInput",
+      "value": {
+        "format_version": "partial-analysis-v1",
+        "revision_id": "9b5a9fd0986f8b2ee00f2402beba32cee9ead0b9cd288508810cad1ccfe275c9",
+        "analysis_digest": "900eb1ee1a38fd37c2929b25453a4d0d791b981de939752a528bba667dafd8c9",
+        "profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8",
+        "document": {
+          "product_id": "webneft",
+          "source_id": "SYNTHETIC-MEDIA-1",
+          "content_hash": "fb99002b381bbddf80d075c2d6063ca0fe67b30303496a8d0ce647e4b7ffd75e",
+          "version": 1,
+          "normalization_version": "media-pii-v1",
+          "fragments": [
+            {
+              "fragment_id": "7a5f314a-4f54-5e8c-a9b1-2d0500faedd9",
+              "asset_id": null,
+              "kind": "text",
+              "text": "Синтетический пример: прошу изменить телефон в заявке. Вложения искусственные.",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+            },
+            {
+              "fragment_id": "6696a2ed-579e-50fe-858e-bfaedfaae8da",
+              "asset_id": "fixture-call-mp3",
+              "kind": "asr",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            },
+            {
+              "fragment_id": "f32e34de-f1dc-5363-8745-0e3f9997e795",
+              "asset_id": "fixture-call-wav",
+              "kind": "asr",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            },
+            {
+              "fragment_id": "1511a6d8-a8dc-5ff0-b63a-2ac5d4199989",
+              "asset_id": "fixture-photo-jpg",
+              "kind": "vision",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ],
+          "errors": []
+        },
+        "source_errors": [
+          {
+            "source_id": "SYNTHETIC-MEDIA-1",
+            "asset_id": "fixture-screen-png",
+            "stage": "vision",
+            "code": "REGISTERED_MATERIAL_INTEGRITY_FAILED",
+            "message": "Материал не обработан. Проверьте код ошибки; пригодные успешные части сохранены."
+          }
+        ],
+        "coverage": {
+          "unit": "materials",
+          "total": 5,
+          "successful": 4,
+          "failed": 1,
+          "empty": 0,
+          "usable": 4,
+          "ratio": 0.8
+        }
+      }
+    },
+    {
+      "schema": "MediaRequest",
+      "value": {
+        "asset_id": "fixture-call-wav",
+        "byte_size": 1644,
+        "content_hash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+        "format_version": "media-request-v1",
+        "mime_type": "audio/wav",
+        "model": {
+          "model_id": "synthetic-asr-no-live-model",
+          "parameters": {},
+          "prompt": null,
+          "prompt_version": null
+        },
+        "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+        "operation": "transcribe",
+        "recording_set_version": "synthetic-media-authored-v1"
+      }
+    },
+    {
+      "schema": "MediaRecording",
+      "value": {
+        "format_version": "media-record-v1",
+        "metadata": {
+          "model_id": "synthetic-asr-no-live-model",
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "origin": "authored",
+          "parameters": {},
+          "prompt_hash": null,
+          "recording_set_version": "synthetic-media-authored-v1",
+          "request_hash": "3898f8c41a9b7b1f4e7e3ee9f18848b9515ce9ab6c410b519d7f18e7d43974b3"
+        },
+        "request": {
+          "asset_id": "fixture-call-wav",
+          "byte_size": 1644,
+          "content_hash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+          "format_version": "media-request-v1",
+          "mime_type": "audio/wav",
+          "model": {
+            "model_id": "synthetic-asr-no-live-model",
+            "parameters": {},
+            "prompt": null,
+            "prompt_version": null
+          },
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "operation": "transcribe",
+          "recording_set_version": "synthetic-media-authored-v1"
+        },
+        "response": {
+          "fragments": [
+            {
+              "asset_id": "fixture-call-wav",
+              "end_ms": null,
+              "fragment_id": "authored-local",
+              "kind": "asr",
+              "start_ms": null,
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ]
+        },
+        "schema_hash": "dd8b34623769af9b94a0b34c0cd09f493c5be9c3e262d93eab8ec7d27a731631"
+      }
+    }
+  ]
+}

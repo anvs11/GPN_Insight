@@ -1,5 +1,9 @@
 # API тем и решений — передача участнику 4
 
+Новый backend срез 09.11 A4–A7: [partial/revisions/assessment/weekly/synthetic binary API, примеры и точные команды](PARTIAL_WEEKLY_HANDOFF.md). Новые read поля совместимы со старым frontend, есть sourceMediaUrl/weeklyReportUrl. Кнопки/плеер/покрытие в UI ещё должен подключить У4; browser-click прогон заблокирован Computer Use, HTTP/restart проверены. Старые API работают, нижние записи исторические.
+
+Обновление A1–A3 09.11: SourceDetail содержит additive original_access=available|restricted; прежние ответы без поля совместимы с UI. Все публичные source/card/list/decision/passport/merge-preview скрывают nonsynthetic ticket.text/requester_id/имя файла/URL, не меняя raw SQLite. Нормализованные фрагменты сохраняются с прежними ограничениями masking; это не enterprise authorization. Новые partial/media DTO отдельно, production media ещё не включён: [PARTIAL_MEDIA_FOUNDATION.md](PARTIAL_MEDIA_FOUNDATION.md).
+
 Запрос U4 об импорте (07.11.2026): текстовые preview/commit/history уже в main 60eedf3; локальное media-расширение описано в [U1_MEDIA_HANDOFF.md](U1_MEDIA_HANDOFF.md) и [IMPORT_HTTP.md](IMPORT_HTTP.md). Публикация media, binary-source API и браузерная приёмка ещё не выполнены. Контракт источников/provenance для U2 — [MEDIA_ANALYSIS_HANDOFF.md](MEDIA_ANALYSIS_HANDOFF.md).
 
 Актуализация 2026-11-07: GET списка/карточки поддерживает согласованные фильтры/период, `period_stats` — новое nullable поле, `stats` остаётся all-time. Добавлен PATCH /topics/{id}/passport с version/passport_version/author/reason, history через changes и 409. Полные тела/примеры/команды — [SERVER_COMPLETION.md](SERVER_COMPLETION.md); 587 backend tests и реальный HTTP/CLI/restart прошли. 14 workflow-примеров и 38 schemas экспортируются прежними CLI-командами. UI новых действий не менялся; прежние записи об unsupported-фильтрах ниже относятся к этапу 1.

@@ -1,5 +1,11 @@
 # Серверная подготовка постоянных медиа
 
+Продолжение 09.11 A4–A7: resolver используется в штатном partial/media Pipeline и synthetic binary API. SQL publication/retry/история, оценки и completed-week report реализованы: [PARTIAL_WEEKLY_HANDOFF.md](PARTIAL_WEEKLY_HANDOFF.md). Нижние ограничения «не подключён» относятся к предыдущему срезу; legacy text/live правила сохранены.
+
+Срез A1–A3 09.11 реализует отдельные partial contracts/Normalizer/strict media replay и безопасность выдачи originals: [PARTIAL_MEDIA_FOUNDATION.md](PARTIAL_MEDIA_FOUNDATION.md). Resolver ниже переиспользован без смены source/hash/import. Production media Pipeline/SQL revision publication пока не подключены (A4).
+
+Обновление 09.11: У4 text import/review уже интегрирован из main `620b741`. Пользователь утвердил категории/приоритеты, анализ успешных частей при ошибке вложения и отчёт за завершённую неделю MSK. Следующая реализация У3/разрешённой части У1 — [NEXT_IMPLEMENTATION_TASKS.md](NEXT_IMPLEMENTATION_TASKS.md); partial ещё не включён в runtime. Прежние требования ждать live endpoints и сохранять полный отказ как будущую политику ниже исторические: доступ не предполагается, а новая обработка требует явных revisions/coverage, не удаления errors.
+
 Срез U3 от 08.11.2026 поверх main `6f3b8df`: импорт U1 и фильтры/редактор паспорта U4 уже объединены. Здесь добавлен внутренний resolver файлов, исправлены Windows-проверки и обновлена ручная текстовая фикстура. ASR/VL, media Normalizer/профиль/replay и API выдачи оригиналов этим срезом не реализованы.
 
 ## Интерфейс для участника 1
@@ -72,4 +78,4 @@ U2: вход остаётся NormalizedDocument с masked fragments и точн
 
 U4: фильтры/редактор паспорта уже в main; новые UI-функции этой задачей не добавлялись и браузером здесь не проверялись. Форма импорта/review и просмотр медиа остаются вашими следующими задачами; внутренний ApprovedAsset не является браузерным URL. API чтения оригиналов не добавлялся.
 
-До разрешённых реальных данных остаётся согласование доступа: GET source/карточка могут содержать raw nonsynthetic ticket.text, и скрытие на стороне UI не является серверным запретом. Этот срез не меняет shared SourceDetail или политику доступа. Полная security-приёмка, live и media replay остаются открытыми; успешный импорт и resolver не объявляют их готовыми.
+Обновление 09.11 (A2): HTTP source/card/list/decision/passport/merge-preview теперь используют серверную проекцию originals: nonsynthetic ticket.text/requester_id/имя и URL файла скрываются, original_access=restricted. Raw SQLite не меняется. Производные фрагменты/комментарии не гарантированно обезличены; корпоративная авторизация и полная security-приёмка остаются открытыми. A3 добавляет отдельный строгий media replay, но production Pipeline и live ещё не подключены. Подробности и проверки — в PARTIAL_MEDIA_FOUNDATION.md.

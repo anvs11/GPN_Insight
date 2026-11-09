@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from . import schemas
+from . import schemas, processing_schemas
 from .config import REPO_ROOT, Settings
 from .db import initialize
 from .demo import load_fixture
@@ -15,6 +15,9 @@ from .repositories import Repository, RepositoryError
 from .replay import SCHEMAS, make_record, publish_records, verify_recordings
 from .gateways import GatewayUnavailable, TextRequest
 from .ingestion.importer import MAX_MANIFEST_BYTES, import_from_directory
+from .media_replay import MediaRecording, MediaRecordingSet
+from .assessment_schemas import AssessmentResult, NeedAssessment, TopicAssessmentSummary
+from .weekly import CompletedWeek
 
 EXAMPLE_SCHEMAS = {
     cls.__name__: cls for cls in (
@@ -40,6 +43,18 @@ WORKFLOW_SCHEMAS = {cls.__name__: cls for cls in (
     schemas.ResolveReviewRequest, schemas.MergePreviewRequest, schemas.MergePreview, schemas.MergeTopicsRequest,
     schemas.MergeResult, schemas.ExcludeNeedsRequest, schemas.ExcludeResult,
     schemas.PassportFields, schemas.PassportUpdate, schemas.TopicPeriodStats,
+)}
+
+# Новый opt-in media/partial контракт; legacy text SCHEMAS/request hashing не меняются.
+PROCESSING_SCHEMAS = {cls.__name__: cls for cls in (
+    processing_schemas.MediaComponentProfile, processing_schemas.MediaProcessingProfile,
+    processing_schemas.MediaRequest, processing_schemas.SourceContext, processing_schemas.MaterialOutcome,
+    processing_schemas.MaterialCoverage, processing_schemas.SourceCoverage,
+    processing_schemas.AnalysisInput, processing_schemas.NormalizationResult, MediaRecording, MediaRecordingSet,
+)}
+
+COMPLETION_SCHEMAS = {cls.__name__: cls for cls in (
+    processing_schemas.ProcessingDetail, AssessmentResult, NeedAssessment, TopicAssessmentSummary, CompletedWeek,
 )}
 
 
@@ -97,6 +112,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="GPN Insight — команды backend")
     parser.add_argument("command", choices=["init-db", "seed-demo", "validate-examples", "export-schemas", "record", "verify-recordings", "import", "report"])
     parser.add_argument("--date-from", type=date.fromisoformat)
+    parser.add_argument("--completed-week", action="store_true")
     parser.add_argument("--date-to", type=date.fromisoformat)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--dry-run", action="store_true")
@@ -112,6 +128,8 @@ def main() -> int:
     parser.add_argument("--scenario", type=Path)
     parser.add_argument("--authored-scenario", action="store_true")
     args = parser.parse_args()
+    if args.completed_week and (args.command != "report" or args.date_from or args.date_to):
+        parser.error("--completed-week применяется к report без ручных дат.")
     if args.command != "import" and (args.manifest is not None or args.dry_run):
         parser.error("Параметры --manifest и --dry-run доступны только для import.")
     if args.command != "report" and (args.date_from is not None or args.date_to is not None):
@@ -132,8 +150,12 @@ def main() -> int:
             path = settings.repo_path(settings.app_db_path)
             if not path.is_file():
                 raise RepositoryError("REPORT_DATABASE_MISSING", "База не найдена. Инициализируйте отдельную базу перед отчётом.", 503)
-            report = build_report(Repository(path), settings.app_model_mode,
-                schemas.RunRequest(date_from=args.date_from, date_to=args.date_to))
+            if args.completed_week:
+                from .weekly import build_weekly_report
+                report = build_weekly_report(Repository(path), settings.app_model_mode)
+            else:
+                report = build_report(Repository(path), settings.app_model_mode,
+                    schemas.RunRequest(date_from=args.date_from, date_to=args.date_to))
             if args.output is not None:
                 args.output.parent.mkdir(parents=True, exist_ok=True)
                 try:
@@ -200,7 +222,7 @@ def main() -> int:
         elif args.command == "export-schemas":
             output = args.output or REPO_ROOT / "var/contracts/schemas.json"
             output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS | WORKFLOW_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
+            output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS | WORKFLOW_SCHEMAS | PROCESSING_SCHEMAS | COMPLETION_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
             print("JSON Schema контрактов сохранены.")
         else:
             settings = Settings()

@@ -1,6 +1,14 @@
 import type { ResolveReviewRequest, ImportLogEntry, ImportPreview, ImportResult, ReviewItem, ApiErrorBody, DecisionUpdate, Health, PassportUpdate, Run, RunRequest, SourceDetail, TopicChangeEvent, TopicDetail, TopicFilters, TopicListItem } from './api-types'
 import { isImportLog, isImportPreview, isImportResult, isReviews, isSourceDetail, isTopicChanges, isTopicDetail, isTopicListItem } from './api-validators'
 
+// U4 использует только same-origin идентификаторы, никогда путь/URL из manifest.
+export function sourceMediaUrl(sourceId: string, sourceVersion: number, assetId: string): string {
+  if (!Number.isSafeInteger(sourceVersion) || sourceVersion < 1 || !sourceId || !assetId) throw new Error('Нужны точные идентификаторы и версия источника.')
+  return `/api/v1/sources/${encodeURIComponent(sourceId)}/versions/${sourceVersion}/assets/${encodeURIComponent(assetId)}`
+}
+
+export const weeklyReportUrl = '/api/v1/reports/weekly'
+
 export class ApiError extends Error {
   readonly status: number
   readonly code: string

@@ -1,4 +1,6 @@
-# Слой хранения SQLite v3
+# Слой хранения SQLite v4
+
+A4–A7 от 09.11 добавляет processing_results/heads/needs и need_assessments, транзакционную миграцию с backup v1–v3 и атомарную смену активного анализа. Исторические fragments/needs/решения/overrides не удаляются; прежний immutable API сохранён. Новые операции/повторы/pending/recheck и команды — [PARTIAL_WEEKLY_HANDOFF.md](PARTIAL_WEEKLY_HANDOFF.md). Нижняя история SQLite v3 относится к прежним срезам.
 
 Медиаимпорт U1, 2026-11-07: файловый протокол реализован в `ingestion/media_files.py` вне SQL. Прежние DatasetRegistration/RegisteredMaterial, source_content_hash, import_commit/register_dataset/registered_materials и SQLite v3 не менялись. Новые файлы размещаются в эксклюзивном server UUID namespace до регистрации; сохраняются journal/идентичность каталога и owner-marker roots→DB. Cleanup сверяется с полным реестром всех продуктов/версий, включая случай сохранённого старого storage_path; неизвестный результат commit не разрешает удалять зарегистрированные файлы. Startup делает recovery до обслуживания запросов; проблемы целостности видны в health и локальном report. Детали и операционная граница одного процесса — [IMPORT_HTTP.md](IMPORT_HTTP.md), приёмка — [.agent/U1_MEDIA_IMPORT.md](../.agent/U1_MEDIA_IMPORT.md). Старые замечания ниже об отсутствии файловой части относятся к прежним этапам. Распознавание/выдача бинарных файлов в этот срез не входят.
 

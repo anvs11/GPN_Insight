@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, model_validator
+from .coverage_schemas import MaterialCoverage, SourceCoverage
 
 Identifier = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^\S+$")]
 Text = Annotated[str, Field(min_length=1, pattern=r"\S")]
@@ -389,6 +390,10 @@ class PassportUpdate(Contract):
 
 
 class SourceDetail(Contract):
+    manual_recheck_required: bool = False
+    current_result_revision: Sha256 | None = None
+    processing_state: Literal["complete", "partial", "failed", "empty"] | None = None
+    analysis_pending: bool = False
     ticket: TicketInput
     document: NormalizedDocument | None
     needs: list[ExtractedNeed]
@@ -397,6 +402,8 @@ class SourceDetail(Contract):
     requires_analysis: bool = False
     synthetic: bool = True
     data_origin: Literal["authored", "imported"] = "authored"
+    # Read-policy projection; internal repository objects retain their originals.
+    original_access: Literal["available", "restricted"] = "available"
 
 
 class TopicDetail(Contract):
@@ -423,6 +430,9 @@ class RecordingMeta(Contract):
 
 
 class Run(Contract):
+    processing_policy: Literal["partial-media-v1"] | None = None
+    material_coverage: MaterialCoverage | None = None
+    source_coverage: SourceCoverage | None = None
     run_id: Identifier
     product_id: Identifier = "webneft"
     mode: ModelMode

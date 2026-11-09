@@ -53,6 +53,13 @@ export function isTopicListItem(value: unknown): value is TopicListItem {
 
 export function isSourceDetail(value: unknown): value is SourceDetail {
   if (!isObject(value) || !isObject(value.ticket) || !Array.isArray(value.needs)) return false
+  if (value.original_access !== undefined && value.original_access !== 'available' && value.original_access !== 'restricted') return false
+  if (value.analysis_pending !== undefined && typeof value.analysis_pending !== 'boolean') return false
+  if (value.manual_recheck_required !== undefined && typeof value.manual_recheck_required !== 'boolean') return false
+  if (value.current_result_revision !== undefined && value.current_result_revision !== null &&
+    (typeof value.current_result_revision !== 'string' || !/^[0-9a-f]{64}$/.test(value.current_result_revision))) return false
+  if (value.processing_state !== undefined && value.processing_state !== null &&
+    !['complete', 'partial', 'failed', 'empty'].some(state => state === value.processing_state)) return false
   const ticket = value.ticket
   if (!(typeof ticket.source_id === 'string' && typeof ticket.product_id === 'string' &&
     isDate(ticket.created_at) && typeof ticket.text === 'string' && isNullableString(ticket.requester_id) &&

@@ -21,11 +21,13 @@ def test_v2_migration_preserves_decisions_and_creates_backup(tmp_path, fixture):
     repo.seed_demo(fixture)
     before = repo.get_topic(fixture.topic.topic_id, "replay")
     with connection(path) as db:
+        for table in ("need_assessments", "processing_needs", "processing_heads", "processing_results"):
+            db.execute(f"DROP TABLE {table}")
         db.execute("DROP TABLE stage_checkpoints")
         db.execute("DROP TABLE run_inputs")
         db.execute("UPDATE schema_version SET version=2")
     result = initialize(path)
-    assert result.version == 3 and result.migrated_from == 2 and result.backup_path.exists()
+    assert result.version == 4 and result.migrated_from == 2 and result.backup_path.exists()
     with connection(result.backup_path) as backup:
         assert backup.execute("SELECT version FROM schema_version").fetchone()[0] == 2
     assert Repository(path).get_topic(fixture.topic.topic_id, "replay") == before

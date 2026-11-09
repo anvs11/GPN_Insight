@@ -10,6 +10,7 @@ from uuid import UUID, uuid4, uuid5
 from pydantic import ValidationError
 
 from .gateways import GatewayResult, GatewayUnavailable, TextGateway, TextRequest
+from .assessment_schemas import NeedAssessment
 from .schemas import (
     BatchAssignment,
     Contract,
@@ -21,6 +22,7 @@ from .schemas import (
 )
 
 RESPONSE_SCHEMAS = {
+    "classify_need": NeedAssessment,
     "extract_needs": ExtractedNeeds,
     "assign_topic": BatchAssignment,
     "propose_topic": ProposedTopic,
