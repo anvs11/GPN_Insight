@@ -31,6 +31,7 @@ from .normalizer import NORMALIZATION_HASH, NORMALIZATION_VERSION, TextNormalize
 INTEGRATION_VERSION = "u2-text-integration-v3"
 
 PROMPT_VERSIONS = {
+    "classify_need": "classify-need-v1",
     "extract_needs": "extract-needs-v1",
     "assign_topic": "assign-topic-v1",
     "propose_topic": "propose-topic-v1",
@@ -228,7 +229,7 @@ class _CheckedGateway:
             if (
                 meta.model_id != self.profile.model_id
                 or meta.prompt_hash != self.profile.prompt_hashes[op]
-                or meta.normalization_hash != NORMALIZATION_HASH
+                or meta.normalization_hash != self.profile.parameters["normalization_hash"]
                 or meta.recording_set_version
                 != self.profile.recording_set_version
                 or canonical(meta.parameters) != canonical(request.parameters)
@@ -237,7 +238,7 @@ class _CheckedGateway:
                     request,
                     response_schema,
                     self.profile.model_id,
-                    NORMALIZATION_HASH,
+                    self.profile.parameters["normalization_hash"],
                 )
                 or (self.mode == "live" and meta.origin != "model")
             ):

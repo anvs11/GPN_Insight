@@ -13,6 +13,7 @@ from .db import connection
 from .coordination import gate_for
 from .errors import RepositoryError
 from .run_storage import RunStorage
+from .processing_storage import ProcessingStorage
 from .clock import now
 from .schemas import (
     DatasetRegistration, ExtractedNeed, Fragment, ImportCounts, ImportLogEntry,
@@ -37,7 +38,7 @@ def source_content_hash(ticket: TicketInput, materials: dict[str, RegisteredMate
     return digest(value)
 
 
-class StorageRepository(RunStorage):
+class StorageRepository(RunStorage, ProcessingStorage):
     def __init__(self, path: Path, *, _db: sqlite3.Connection | None = None):
         self.path = path
         self._db = _db
@@ -92,14 +93,21 @@ class StorageRepository(RunStorage):
             row = self._source(db, product_id, source_id, version)
             key = (product_id, source_id, row["version"])
             doc = db.execute("SELECT body_json FROM normalized_documents WHERE product_id=? AND source_id=? AND source_version=?", key).fetchone()
-            needs = db.execute("SELECT body_json FROM stored_needs WHERE product_id=? AND source_id=? AND source_version=? ORDER BY need_id", key).fetchall()
+            needs = db.execute("SELECT body_json FROM stored_needs WHERE product_id=? AND source_id=? AND source_version=? AND (? OR active=1) ORDER BY need_id", (*key, row["version"] != row["current_version"])).fetchall()
+            snapshot = type(self)(self.path, _db=db)
+            processing = snapshot.processing_result(source_id, product_id, row["version"]) if snapshot._has_processing() else None
+            pending = snapshot.processing_pending(source_id, product_id, row["version"])
+            manual_recheck = bool(db.execute("SELECT 1 FROM manual_overrides WHERE product_id=? AND source_id=? AND requires_recheck=1 LIMIT 1", (product_id, source_id)).fetchone())
         normalized = NormalizedDocument.model_validate_json(doc[0]) if doc else None
         return SourceDetail(
+            current_result_revision=processing.revision_id if processing else None,
+            processing_state=processing.state if processing else None, analysis_pending=pending,
+            manual_recheck_required=manual_recheck,
             ticket=TicketInput.model_validate_json(row["ticket_json"]),
             document=normalized,
             needs=[ExtractedNeed.model_validate_json(n[0]) for n in needs],
             source_version=row["version"], content_hash=row["content_hash"],
-            requires_analysis=not bool(row["needs_extracted"]) or bool(normalized and normalized.errors),
+            requires_analysis=not bool(row["needs_extracted"]) or bool(normalized and normalized.errors) or pending,
             synthetic=bool(row["synthetic"]), data_origin=row["origin"],
         )
 
@@ -134,10 +142,10 @@ class StorageRepository(RunStorage):
                 db.row_factory = sqlite3.Row
                 db.execute("PRAGMA query_only = ON")
                 db.execute("BEGIN")
-                if [r[0] for r in db.execute("SELECT version FROM schema_version")] not in ([2], [3]):
+                if [r[0] for r in db.execute("SELECT version FROM schema_version")] not in ([2], [3], [4]):
                     raise RepositoryError(
                         "PREVIEW_SCHEMA_UNSUPPORTED",
-                        "Для проверки нужна SQLite v2/v3. Обновите базу отдельно по README.",
+                        "Для проверки нужна SQLite v2–v4. Обновите базу отдельно по README.",
                         503,
                     )
                 source_query = (

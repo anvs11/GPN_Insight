@@ -1,5 +1,13 @@
 # GPN Insight
 
+Срез 09.11 A4–A7: подключены partial/media replay Pipeline, SQLite v4 с backup/историей ревизий, категории/приоритеты с evidence, сводка завершённой MSK недели и безопасная выдача synthetic медиа. [Контракты и команды команды](docs/PARTIAL_WEEKLY_HANDOFF.md). Быстрая изолированная проверка из backend: `..\.venv\Scripts\python.exe -X utf8 -m scripts.check_partial_weekly_integration`. Live и новые UI media/report экраны не объявлены готовыми; нижние описания прежних срезов исторические.
+
+A1–A3 от 09.11: [partial/media contracts, Normalizer, strict replay и политика originals](docs/PARTIAL_MEDIA_FOUNDATION.md) реализованы как отдельная проверяемая связка. 728 backend tests/4 Windows symlink skip, 258 frontend tests/build; прежние SQL/prompts/pins сохранены. Production media Pipeline подключается следующим A4, live недоступен. Из backend: `..\.venv\Scripts\python.exe -X utf8 -m scripts.check_partial_media_foundation` — безопасная synthetic процедура partial→retry/reopen, не рабочая БД.
+
+Интеграция 09.11.2026: PR #15 У4 уже включён из GitHub main `620b741` в текущую `feat/weekly-partial-media`, без нового клона. Text import/preview/processing и review attach/insufficient_data готовы. Утверждённые категории/приоритеты, partial processing и завершённая неделя MSK разбиты на [конкретные следующие задачи У3/У1](docs/NEXT_IMPLEMENTATION_TASKS.md); эти новые backend-функции ещё не объявляются реализованными.
+
+План от 09.11.2026 скорректирован по вебинару и task.pdf: [общий ExecPlan](.agent/EXECPLAN.md), [полный разбор ответов и вопросы команде](docs/ORG_FEEDBACK_REVIEW.md). Ближайшие 2–3 дня — прототип с медиа по возможности, затем общие материалы/удобство. Доступ к моделям не предполагается; категории/приоритеты/недельная сводка — следующие согласуемые задачи, не уже готовые функции. Исторический план сохранён отдельно; код в этой документальной задаче не менялся.
+
 Состояние на 08.11.2026: PR #12 (медиаимпорт U1) и #13 (фильтры/редактор паспорта U4) объединены в main `6f3b8df`. Серверная подготовка постоянных медиа, Windows-проверки, новый handoff v2 и команды — [MEDIA_RUNTIME.md](docs/MEDIA_RUNTIME.md). Старые этапные статусы ниже исторические; resolver не включает ASR/VL или media pipeline.
 
 Передача U2/U4: [контракт media-источников, metadata и provenance](docs/MEDIA_ANALYSIS_HANDOFF.md), [передача импорта U1](docs/U1_MEDIA_HANDOFF.md). Текстовый и media import уже в main. Из `backend/`: `../.venv/bin/python -X utf8 -m scripts.check_media_handoff` проверяет четыре authored примера без моделей и БД.

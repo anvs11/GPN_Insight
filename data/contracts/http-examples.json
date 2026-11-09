@@ -131,7 +131,12 @@
             "content_hash": "0895507d89f028334ace7f4901e950420e73e89d551feddc07f0049a35247a29",
             "requires_analysis": false,
             "synthetic": true,
-            "data_origin": "authored"
+            "data_origin": "authored",
+            "original_access": "available",
+            "current_result_revision": null,
+            "processing_state": null,
+            "analysis_pending": false,
+            "manual_recheck_required": false
           },
           {
             "ticket": {
@@ -179,7 +184,12 @@
             "content_hash": "ba4189b426957857c89df501db63522bb3aa24174cec1a6dcac6213008813089",
             "requires_analysis": false,
             "synthetic": true,
-            "data_origin": "authored"
+            "data_origin": "authored",
+            "original_access": "available",
+            "current_result_revision": null,
+            "processing_state": null,
+            "analysis_pending": false,
+            "manual_recheck_required": false
           },
           {
             "ticket": {
@@ -227,7 +237,12 @@
             "content_hash": "a1e55e2cf67ad87a1e05233c509e764a1dc34d5bf395af92fb06375763b037e7",
             "requires_analysis": false,
             "synthetic": true,
-            "data_origin": "authored"
+            "data_origin": "authored",
+            "original_access": "available",
+            "current_result_revision": null,
+            "processing_state": null,
+            "analysis_pending": false,
+            "manual_recheck_required": false
           },
           {
             "ticket": {
@@ -275,7 +290,12 @@
             "content_hash": "be5c5aab9f6f2357aae7a22df9693b695eb3df52e55e1a22000f8aebedbb3b7c",
             "requires_analysis": false,
             "synthetic": true,
-            "data_origin": "authored"
+            "data_origin": "authored",
+            "original_access": "available",
+            "current_result_revision": null,
+            "processing_state": null,
+            "analysis_pending": false,
+            "manual_recheck_required": false
           }
         ],
         "history": [],
@@ -337,7 +357,12 @@
         "content_hash": "0895507d89f028334ace7f4901e950420e73e89d551feddc07f0049a35247a29",
         "requires_analysis": false,
         "synthetic": true,
-        "data_origin": "authored"
+        "data_origin": "authored",
+        "original_access": "available",
+        "current_result_revision": null,
+        "processing_state": null,
+        "analysis_pending": false,
+        "manual_recheck_required": false
       }
     },
     "version_conflict": {

@@ -137,6 +137,10 @@ class Repository(StorageRepository):
                 "JOIN source_records r ON r.product_id=n.product_id AND r.source_id=n.source_id "
                 "JOIN source_versions v ON v.product_id=r.product_id AND v.source_id=r.source_id AND v.version=r.current_version "
                 "WHERE l.topic_id=? AND n.source_version<r.current_version AND v.needs_extracted=0 ORDER BY n.source_id", (topic_id,))]
+            pending = sorted(set(pending) | {s.ticket.source_id for s in sources if s.analysis_pending})
+            pending = sorted(set(pending) | {r[0] for r in db.execute(
+                "SELECT DISTINCT o.source_id FROM manual_overrides o LEFT JOIN topic_need_links l ON l.need_id=o.need_id "
+                "WHERE o.requires_recheck=1 AND (o.topic_id=? OR l.topic_id=?)", (topic_id, topic_id))})
         tickets = [s.ticket for s in sources]
         stats = self._stats(tickets, topic, history)
         period_stats = None

@@ -1,0 +1,604 @@
+{
+  "synthetic": true,
+  "origin": "authored",
+  "processing": {
+    "manual_recheck_required": false,
+    "format_version": "partial-source-v1",
+    "result": {
+      "format_version": "partial-normalization-v1",
+      "context": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-1",
+        "source_version": 1,
+        "content_hash": "fb99002b381bbddf80d075c2d6063ca0fe67b30303496a8d0ce647e4b7ffd75e",
+        "synthetic": true,
+        "data_origin": "imported"
+      },
+      "profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8",
+      "document": {
+        "product_id": "webneft",
+        "source_id": "SYNTHETIC-MEDIA-1",
+        "content_hash": "fb99002b381bbddf80d075c2d6063ca0fe67b30303496a8d0ce647e4b7ffd75e",
+        "version": 1,
+        "normalization_version": "media-pii-v1",
+        "fragments": [
+          {
+            "fragment_id": "7a5f314a-4f54-5e8c-a9b1-2d0500faedd9",
+            "asset_id": null,
+            "kind": "text",
+            "text": "Синтетический пример: прошу изменить телефон в заявке. Вложения искусственные.",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+          },
+          {
+            "fragment_id": "6696a2ed-579e-50fe-858e-bfaedfaae8da",
+            "asset_id": "fixture-call-mp3",
+            "kind": "asr",
+            "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+          },
+          {
+            "fragment_id": "f32e34de-f1dc-5363-8745-0e3f9997e795",
+            "asset_id": "fixture-call-wav",
+            "kind": "asr",
+            "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+          },
+          {
+            "fragment_id": "1511a6d8-a8dc-5ff0-b63a-2ac5d4199989",
+            "asset_id": "fixture-photo-jpg",
+            "kind": "vision",
+            "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+          },
+          {
+            "fragment_id": "71cb57a2-0273-50d5-b46a-4f9f67793bc4",
+            "asset_id": "fixture-screen-png",
+            "kind": "vision",
+            "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+            "start_ms": null,
+            "end_ms": null,
+            "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+          }
+        ],
+        "errors": []
+      },
+      "materials": [
+        {
+          "asset_id": null,
+          "kind": "text",
+          "input_hash": "0a023d9bd01f06aa1ce4f9d6285c668a92b059704fad34549e9c42a562ec6c11",
+          "state": "success",
+          "fragments": [
+            {
+              "fragment_id": "7a5f314a-4f54-5e8c-a9b1-2d0500faedd9",
+              "asset_id": null,
+              "kind": "text",
+              "text": "Синтетический пример: прошу изменить телефон в заявке. Вложения искусственные.",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Маскирование не гарантирует обезличивание: имена и адреса могут сохраниться. Используйте синтетические или разрешённые данные."
+            }
+          ],
+          "error": null,
+          "metadata": null
+        },
+        {
+          "asset_id": "fixture-call-mp3",
+          "kind": "audio",
+          "input_hash": "d1f4c6198b85c6a58deb2e335460070612e84b12d271ca9662638342eaf869df",
+          "state": "success",
+          "fragments": [
+            {
+              "fragment_id": "6696a2ed-579e-50fe-858e-bfaedfaae8da",
+              "asset_id": "fixture-call-mp3",
+              "kind": "asr",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ],
+          "error": null,
+          "metadata": {
+            "request_hash": "b61476846b624ddb75149dd8e458d7d2e5a8119aa1f6d23ab755e6d17f74f35a",
+            "prompt_hash": null,
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "model_id": "synthetic-asr-no-live-model",
+            "parameters": {},
+            "origin": "authored",
+            "recording_set_version": "synthetic-media-authored-v1"
+          }
+        },
+        {
+          "asset_id": "fixture-call-wav",
+          "kind": "audio",
+          "input_hash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+          "state": "success",
+          "fragments": [
+            {
+              "fragment_id": "f32e34de-f1dc-5363-8745-0e3f9997e795",
+              "asset_id": "fixture-call-wav",
+              "kind": "asr",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ],
+          "error": null,
+          "metadata": {
+            "request_hash": "3898f8c41a9b7b1f4e7e3ee9f18848b9515ce9ab6c410b519d7f18e7d43974b3",
+            "prompt_hash": null,
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "model_id": "synthetic-asr-no-live-model",
+            "parameters": {},
+            "origin": "authored",
+            "recording_set_version": "synthetic-media-authored-v1"
+          }
+        },
+        {
+          "asset_id": "fixture-photo-jpg",
+          "kind": "image",
+          "input_hash": "4d8a7284289c56dad4df6aa813d227b451e7132f7f4f23c0554edb69e03390b6",
+          "state": "success",
+          "fragments": [
+            {
+              "fragment_id": "1511a6d8-a8dc-5ff0-b63a-2ac5d4199989",
+              "asset_id": "fixture-photo-jpg",
+              "kind": "vision",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ],
+          "error": null,
+          "metadata": {
+            "request_hash": "a9a9d9493bc3495dbab0f8e642ebc0fe88d68c70a163451227dd31e0a15ed0ec",
+            "prompt_hash": "54cfd903d06f228c8b945d7e563d45154d6ba180772d21846948530f57d346ab",
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "model_id": "synthetic-vl-no-live-model",
+            "parameters": {},
+            "origin": "authored",
+            "recording_set_version": "synthetic-media-authored-v1"
+          }
+        },
+        {
+          "asset_id": "fixture-screen-png",
+          "kind": "image",
+          "input_hash": "bd0b83bce52b94ba577d39de2196799f654c12fe1114337e3ab3590bb63f06f7",
+          "state": "success",
+          "fragments": [
+            {
+              "fragment_id": "71cb57a2-0273-50d5-b46a-4f9f67793bc4",
+              "asset_id": "fixture-screen-png",
+              "kind": "vision",
+              "text": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL].",
+              "start_ms": null,
+              "end_ms": null,
+              "warning": "Подготовленный вручную текст; распознавание модели не выполнялось."
+            }
+          ],
+          "error": null,
+          "metadata": {
+            "request_hash": "98e0ca066fb1bc99e7b887af621d86b8e80c000ba6db0cc3a3ed5ff5235d5241",
+            "prompt_hash": "54cfd903d06f228c8b945d7e563d45154d6ba180772d21846948530f57d346ab",
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "model_id": "synthetic-vl-no-live-model",
+            "parameters": {},
+            "origin": "authored",
+            "recording_set_version": "synthetic-media-authored-v1"
+          }
+        }
+      ],
+      "coverage": {
+        "unit": "materials",
+        "total": 5,
+        "successful": 5,
+        "failed": 0,
+        "empty": 0,
+        "usable": 5,
+        "ratio": 1.0
+      },
+      "state": "complete",
+      "revision_id": "67a0cdd6579b914d1557a030230303b768a952f48a774dfc86d9148928a1351d",
+      "analysis_digest": "f805ab48d055820cd3095dedc47e4f37899bf886601ca6368feadb276705b928"
+    },
+    "current_head_revision": "67a0cdd6579b914d1557a030230303b768a952f48a774dfc86d9148928a1351d",
+    "is_current": true,
+    "analysis_pending": false,
+    "assessments": {
+      "322ce5c3-7727-57e4-97e5-4aec9585f0bc": {
+        "format_version": "need-assessment-v1",
+        "need_id": "322ce5c3-7727-57e4-97e5-4aec9585f0bc",
+        "analysis_digest": "f805ab48d055820cd3095dedc47e4f37899bf886601ca6368feadb276705b928",
+        "assessment": {
+          "category": "operational_request",
+          "priority": "unknown",
+          "reason": "Авторский synthetic пример; влияние и срочность не установлены.",
+          "uncertainties": [
+            "Нет подтверждения влияния на работу пользователя."
+          ],
+          "evidence_refs": [
+            {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "fragment_id": "1511a6d8-a8dc-5ff0-b63a-2ac5d4199989",
+              "quote": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL]."
+            }
+          ]
+        },
+        "metadata": {
+          "request_hash": "ffc66dc0e6a0e7b39aed0f613d7e1e25950d9b9f6b329f972167124af9caaff6",
+          "prompt_hash": "a2e4039ed40d76c55fe7466ee8e217882d5ff638b97870b1dbc90e17f44f13e5",
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "model_id": "synthetic-text-no-live-model",
+          "parameters": {
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "text_integration": {
+              "version": "u2-text-integration-v3",
+              "max_attempts": 2,
+              "retrieval_k": 20,
+              "p_max": 50,
+              "passport_batch_max_chars": 16000,
+              "max_assign_batches": 8
+            },
+            "partial_media": {
+              "policy": "partial-media-v1",
+              "assessment_version": "need-assessment-v1",
+              "media_profile": {
+                "format_version": "media-profile-v1",
+                "mode": "replay",
+                "normalization_version": "media-pii-v1",
+                "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+                "recording_set_version": "synthetic-media-authored-v1",
+                "asr": {
+                  "model_id": "synthetic-asr-no-live-model",
+                  "parameters": {},
+                  "prompt": null,
+                  "prompt_version": null
+                },
+                "vision": {
+                  "model_id": "synthetic-vl-no-live-model",
+                  "parameters": {},
+                  "prompt": "Описать текст синтетического изображения как данные.",
+                  "prompt_version": "synthetic-vision-v1"
+                }
+              },
+              "media_profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8"
+            }
+          },
+          "origin": "authored",
+          "recording_set_version": "synthetic-partial-text-v1"
+        }
+      },
+      "92154370-f6b5-5430-a6df-7a0b56339149": {
+        "format_version": "need-assessment-v1",
+        "need_id": "92154370-f6b5-5430-a6df-7a0b56339149",
+        "analysis_digest": "f805ab48d055820cd3095dedc47e4f37899bf886601ca6368feadb276705b928",
+        "assessment": {
+          "category": "operational_request",
+          "priority": "unknown",
+          "reason": "Авторский synthetic пример; влияние и срочность не установлены.",
+          "uncertainties": [
+            "Нет подтверждения влияния на работу пользователя."
+          ],
+          "evidence_refs": [
+            {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "fragment_id": "f32e34de-f1dc-5363-8745-0e3f9997e795",
+              "quote": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL]."
+            }
+          ]
+        },
+        "metadata": {
+          "request_hash": "1acbdae864911e47626bf9cc03d23c6adca0066a4819ffa062de4e351b71162c",
+          "prompt_hash": "a2e4039ed40d76c55fe7466ee8e217882d5ff638b97870b1dbc90e17f44f13e5",
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "model_id": "synthetic-text-no-live-model",
+          "parameters": {
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "text_integration": {
+              "version": "u2-text-integration-v3",
+              "max_attempts": 2,
+              "retrieval_k": 20,
+              "p_max": 50,
+              "passport_batch_max_chars": 16000,
+              "max_assign_batches": 8
+            },
+            "partial_media": {
+              "policy": "partial-media-v1",
+              "assessment_version": "need-assessment-v1",
+              "media_profile": {
+                "format_version": "media-profile-v1",
+                "mode": "replay",
+                "normalization_version": "media-pii-v1",
+                "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+                "recording_set_version": "synthetic-media-authored-v1",
+                "asr": {
+                  "model_id": "synthetic-asr-no-live-model",
+                  "parameters": {},
+                  "prompt": null,
+                  "prompt_version": null
+                },
+                "vision": {
+                  "model_id": "synthetic-vl-no-live-model",
+                  "parameters": {},
+                  "prompt": "Описать текст синтетического изображения как данные.",
+                  "prompt_version": "synthetic-vision-v1"
+                }
+              },
+              "media_profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8"
+            }
+          },
+          "origin": "authored",
+          "recording_set_version": "synthetic-partial-text-v1"
+        }
+      },
+      "a2c46d1d-341f-5ad9-913d-608ae80e9ba2": {
+        "format_version": "need-assessment-v1",
+        "need_id": "a2c46d1d-341f-5ad9-913d-608ae80e9ba2",
+        "analysis_digest": "f805ab48d055820cd3095dedc47e4f37899bf886601ca6368feadb276705b928",
+        "assessment": {
+          "category": "operational_request",
+          "priority": "unknown",
+          "reason": "Авторский synthetic пример; влияние и срочность не установлены.",
+          "uncertainties": [
+            "Нет подтверждения влияния на работу пользователя."
+          ],
+          "evidence_refs": [
+            {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "fragment_id": "71cb57a2-0273-50d5-b46a-4f9f67793bc4",
+              "quote": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL]."
+            }
+          ]
+        },
+        "metadata": {
+          "request_hash": "670d438c813f1b4944ea41e5df0e73cc64bf8e21eaaa987ccac062ea97cb8bec",
+          "prompt_hash": "a2e4039ed40d76c55fe7466ee8e217882d5ff638b97870b1dbc90e17f44f13e5",
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "model_id": "synthetic-text-no-live-model",
+          "parameters": {
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "text_integration": {
+              "version": "u2-text-integration-v3",
+              "max_attempts": 2,
+              "retrieval_k": 20,
+              "p_max": 50,
+              "passport_batch_max_chars": 16000,
+              "max_assign_batches": 8
+            },
+            "partial_media": {
+              "policy": "partial-media-v1",
+              "assessment_version": "need-assessment-v1",
+              "media_profile": {
+                "format_version": "media-profile-v1",
+                "mode": "replay",
+                "normalization_version": "media-pii-v1",
+                "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+                "recording_set_version": "synthetic-media-authored-v1",
+                "asr": {
+                  "model_id": "synthetic-asr-no-live-model",
+                  "parameters": {},
+                  "prompt": null,
+                  "prompt_version": null
+                },
+                "vision": {
+                  "model_id": "synthetic-vl-no-live-model",
+                  "parameters": {},
+                  "prompt": "Описать текст синтетического изображения как данные.",
+                  "prompt_version": "synthetic-vision-v1"
+                }
+              },
+              "media_profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8"
+            }
+          },
+          "origin": "authored",
+          "recording_set_version": "synthetic-partial-text-v1"
+        }
+      },
+      "aad8c525-9098-557c-89bb-2ce0ace6a80a": {
+        "format_version": "need-assessment-v1",
+        "need_id": "aad8c525-9098-557c-89bb-2ce0ace6a80a",
+        "analysis_digest": "f805ab48d055820cd3095dedc47e4f37899bf886601ca6368feadb276705b928",
+        "assessment": {
+          "category": "operational_request",
+          "priority": "unknown",
+          "reason": "Авторский synthetic пример; влияние и срочность не установлены.",
+          "uncertainties": [
+            "Нет подтверждения влияния на работу пользователя."
+          ],
+          "evidence_refs": [
+            {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "fragment_id": "6696a2ed-579e-50fe-858e-bfaedfaae8da",
+              "quote": "Синтетический authored пример: изменить телефон в заявке. Связь [EMAIL]."
+            }
+          ]
+        },
+        "metadata": {
+          "request_hash": "176f41f83325dde60225c03821288908df56eada8c3a8dae2e6499cdd23e8067",
+          "prompt_hash": "a2e4039ed40d76c55fe7466ee8e217882d5ff638b97870b1dbc90e17f44f13e5",
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "model_id": "synthetic-text-no-live-model",
+          "parameters": {
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "text_integration": {
+              "version": "u2-text-integration-v3",
+              "max_attempts": 2,
+              "retrieval_k": 20,
+              "p_max": 50,
+              "passport_batch_max_chars": 16000,
+              "max_assign_batches": 8
+            },
+            "partial_media": {
+              "policy": "partial-media-v1",
+              "assessment_version": "need-assessment-v1",
+              "media_profile": {
+                "format_version": "media-profile-v1",
+                "mode": "replay",
+                "normalization_version": "media-pii-v1",
+                "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+                "recording_set_version": "synthetic-media-authored-v1",
+                "asr": {
+                  "model_id": "synthetic-asr-no-live-model",
+                  "parameters": {},
+                  "prompt": null,
+                  "prompt_version": null
+                },
+                "vision": {
+                  "model_id": "synthetic-vl-no-live-model",
+                  "parameters": {},
+                  "prompt": "Описать текст синтетического изображения как данные.",
+                  "prompt_version": "synthetic-vision-v1"
+                }
+              },
+              "media_profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8"
+            }
+          },
+          "origin": "authored",
+          "recording_set_version": "synthetic-partial-text-v1"
+        }
+      },
+      "bad6d690-1869-5a6b-bd6e-5d576ae76eca": {
+        "format_version": "need-assessment-v1",
+        "need_id": "bad6d690-1869-5a6b-bd6e-5d576ae76eca",
+        "analysis_digest": "f805ab48d055820cd3095dedc47e4f37899bf886601ca6368feadb276705b928",
+        "assessment": {
+          "category": "operational_request",
+          "priority": "unknown",
+          "reason": "Авторский synthetic пример; влияние и срочность не установлены.",
+          "uncertainties": [
+            "Нет подтверждения влияния на работу пользователя."
+          ],
+          "evidence_refs": [
+            {
+              "source_id": "SYNTHETIC-MEDIA-1",
+              "fragment_id": "7a5f314a-4f54-5e8c-a9b1-2d0500faedd9",
+              "quote": "Синтетический пример: прошу изменить телефон в заявке. Вложения искусственные."
+            }
+          ]
+        },
+        "metadata": {
+          "request_hash": "8c005fef88bcc90930ce987420ae20a2222f176f1811764c388cb962839f0353",
+          "prompt_hash": "a2e4039ed40d76c55fe7466ee8e217882d5ff638b97870b1dbc90e17f44f13e5",
+          "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+          "model_id": "synthetic-text-no-live-model",
+          "parameters": {
+            "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+            "text_integration": {
+              "version": "u2-text-integration-v3",
+              "max_attempts": 2,
+              "retrieval_k": 20,
+              "p_max": 50,
+              "passport_batch_max_chars": 16000,
+              "max_assign_batches": 8
+            },
+            "partial_media": {
+              "policy": "partial-media-v1",
+              "assessment_version": "need-assessment-v1",
+              "media_profile": {
+                "format_version": "media-profile-v1",
+                "mode": "replay",
+                "normalization_version": "media-pii-v1",
+                "normalization_hash": "5a64b59a674c7e0f74742b392e886ae87d3939cb1d084b0b09c1e1497de250c1",
+                "recording_set_version": "synthetic-media-authored-v1",
+                "asr": {
+                  "model_id": "synthetic-asr-no-live-model",
+                  "parameters": {},
+                  "prompt": null,
+                  "prompt_version": null
+                },
+                "vision": {
+                  "model_id": "synthetic-vl-no-live-model",
+                  "parameters": {},
+                  "prompt": "Описать текст синтетического изображения как данные.",
+                  "prompt_version": "synthetic-vision-v1"
+                }
+              },
+              "media_profile_hash": "031c62771f0c592ee2105e43e16f3e58f96e8774f987bb37750ba29d13e5aba8"
+            }
+          },
+          "origin": "authored",
+          "recording_set_version": "synthetic-partial-text-v1"
+        }
+      }
+    },
+    "unassessed_need_ids": []
+  },
+  "topic_summary": {
+    "format_version": "topic-assessment-summary-v1",
+    "topic_id": "dc43ce5a-3f2c-5200-a5d2-34c17fc52da0",
+    "topic_version": 6,
+    "unit": "sources",
+    "source_count": 1,
+    "unassessed_source_count": 0,
+    "categories": {
+      "operational_request": 1
+    },
+    "priorities": {
+      "unknown": 1
+    },
+    "aggregation": "distinct-source-per-value; categories/priorities overlap; no inferred normal priority"
+  },
+  "completed_week": {
+    "timezone": "Europe/Moscow",
+    "period": {
+      "product_id": "webneft",
+      "date_from": "2026-11-02",
+      "date_to": "2026-11-08"
+    },
+    "start_utc": "2026-11-01T21:00:00Z",
+    "end_utc_exclusive": "2026-11-08T21:00:00Z"
+  },
+  "completed_run": {
+    "processing_policy": "partial-media-v1",
+    "material_coverage": {
+      "unit": "materials",
+      "total": 5,
+      "successful": 5,
+      "failed": 0,
+      "empty": 0,
+      "usable": 5,
+      "ratio": 1.0
+    },
+    "source_coverage": {
+      "unit": "sources",
+      "total": 1,
+      "complete": 1,
+      "partial": 0,
+      "failed": 0,
+      "empty": 0
+    },
+    "run_id": "f5a3a470-3d71-42ab-8107-fb6cf5f2ea9c",
+    "product_id": "webneft",
+    "mode": "replay",
+    "state": "completed",
+    "stage": "finished",
+    "successful_materials": 5,
+    "failed_materials": 0,
+    "total_materials": 5,
+    "coverage": 1.0,
+    "errors": [],
+    "created_at": "2026-11-09T18:54:11.834415Z",
+    "started_at": "2026-11-09T18:54:11.840802Z",
+    "finished_at": "2026-11-09T18:54:11.914049Z",
+    "origins": [
+      "authored"
+    ],
+    "completed_steps": 0,
+    "reused_steps": 12,
+    "failure_code": null,
+    "failure_message": null
+  },
+  "purpose": "synthetic_authored_http_examples",
+  "live_model_calls": false
+}

@@ -4,9 +4,10 @@ from typing import Literal
 from fastapi import APIRouter, Request
 
 from .db import connection
-from .gateways import model_health
+from .gateways import GatewayUnavailable, model_health
 from .repositories import RepositoryError
-from .schemas import DecisionUpdate, ErrorResponse, Health, ReviewItem, Run, RunRequest, SourceDetail, TopicDetail, TopicStatus
+from .public_views import public_source, public_topic
+from .schemas import DecisionUpdate, ErrorResponse, Health, ModelAvailability, ReviewItem, Run, RunRequest, SourceDetail, TopicDetail, TopicStatus
 
 router = APIRouter(prefix="/api/v1", responses={
     code: {"model": ErrorResponse} for code in (403, 404, 409, 422, 501, 503)
@@ -28,6 +29,21 @@ def health(request: Request) -> Health:
     storage = getattr(request.app.state, "import_storage_report", None)
     if storage:
         result.integration_errors.extend(storage.issues)
+    if service.adapters is not None and service.adapters.partial:
+        try:
+            bundle = service.adapters.normalizer.asr.records()
+            for kind, operation in (("asr", "transcribe"), ("vision", "describe")):
+                known = [r for r in bundle.records.values() if r.request.operation == operation]
+                result.available_models[kind] = ModelAvailability(status="available" if known else "unavailable",
+                    configured=True, code="MEDIA_REPLAY_READY" if known else "REPLAY_RECORD_MISSING",
+                    message=f"Replay: проверено записей {len(known)}. Только точные известные входы; live не подключён.")
+            result.replay_origins = sorted(set(result.replay_origins) | {r.metadata.origin for r in bundle.records.values()})
+            result.replay_record_count += len(bundle.records)
+        except GatewayUnavailable as exc:
+            for kind in ("asr", "vision"):
+                result.available_models[kind] = ModelAvailability(status="unavailable", configured=True,
+                    code=exc.code, message="Media replay недоступен; live не подставляется. Проверьте точный набор.")
+            result.integration_errors.append(exc.code)
     return result
 
 
@@ -48,9 +64,9 @@ def topics(request: Request, support_level: Literal["single", "repeated", "all"]
            review_due: Literal["true", "false"] | None = None) -> list[TopicDetail]:
     _filters(request, {"support_level", "product_id", "status", "date_from", "date_to", "review_due"})
     repo = request.app.state.repository
-    return repo.list_topics(request.app.state.settings.app_model_mode, product_id=product_id,
+    return [public_topic(card) for card in repo.list_topics(request.app.state.settings.app_model_mode, product_id=product_id,
         support_level=support_level, status=status, review_due=None if review_due is None else review_due == "true",
-        date_from=date_from, date_to=date_to)
+        date_from=date_from, date_to=date_to)]
 
 
 def _filters(request: Request, allowed: set[str]) -> None:
@@ -61,13 +77,13 @@ def _filters(request: Request, allowed: set[str]) -> None:
 @router.get("/topics/{topic_id}", response_model=TopicDetail)
 def topic(topic_id: str, request: Request, date_from: date | None = None, date_to: date | None = None) -> TopicDetail:
     _filters(request, {"date_from", "date_to"})
-    return request.app.state.repository.get_topic(topic_id, request.app.state.settings.app_model_mode,
-        date_from=date_from, date_to=date_to)
+    return public_topic(request.app.state.repository.get_topic(topic_id, request.app.state.settings.app_model_mode,
+        date_from=date_from, date_to=date_to))
 
 
 @router.get("/sources/{source_id}", response_model=SourceDetail)
 def source(source_id: str, request: Request) -> SourceDetail:
-    return request.app.state.repository.get_source(source_id)
+    return public_source(request.app.state.repository.get_source(source_id))
 
 
 @router.get("/reviews", response_model=list[ReviewItem])
@@ -94,4 +110,4 @@ def decision(topic_id: str, update: DecisionUpdate, request: Request) -> TopicDe
     # Ответ содержит именно сохранённую версию даже при параллельном PATCH.
     with repo.transaction() as tx:
         tx.record_decision(topic_id, update)
-        return tx.get_topic(topic_id, request.app.state.settings.app_model_mode)
+        return public_topic(tx.get_topic(topic_id, request.app.state.settings.app_model_mode))

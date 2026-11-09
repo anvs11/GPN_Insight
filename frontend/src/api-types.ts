@@ -43,6 +43,9 @@ export interface MaterialError {
 }
 
 export interface Run {
+  processing_policy?: 'partial-media-v1' | null
+  material_coverage?: { unit: 'materials'; total: number; successful: number; failed: number; empty: number; usable: number; ratio: number | null } | null
+  source_coverage?: { unit: 'sources'; total: number; complete: number; partial: number; failed: number; empty: number } | null
   run_id: string
   product_id: string
   mode: ModelMode
@@ -175,6 +178,11 @@ export interface ExtractedNeed {
 }
 
 export interface SourceDetail {
+  manual_recheck_required?: boolean
+  current_result_revision?: string | null
+  processing_state?: 'complete' | 'partial' | 'failed' | 'empty' | null
+  analysis_pending?: boolean
+  original_access?: 'available' | 'restricted'
   ticket: {
     source_id: string
     product_id: string

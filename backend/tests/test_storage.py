@@ -57,7 +57,7 @@ def test_migration_preserves_v1_and_safe_repeat(tmp_path, fixture):
     path = tmp_path / "v1.db"
     event = seed_v1(path, fixture)
     result = initialize(path)
-    assert result.version == 3 and result.migrated_from == 1 and result.backup_path.exists()
+    assert result.version == 4 and result.migrated_from == 1 and result.backup_path.exists()
     with connection(result.backup_path) as backup:
         assert backup.execute("SELECT version FROM schema_version").fetchone()[0] == 1
         assert backup.execute("SELECT body_json FROM decision_events").fetchone()[0] == event.model_dump_json()

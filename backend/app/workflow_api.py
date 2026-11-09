@@ -15,6 +15,10 @@ from .schemas import (
     TopicChangeEvent, TopicDetail, TopicPassport,
 )
 from .workflow import HumanWorkflow
+from .public_views import public_topic
+from .processing_schemas import ProcessingDetail
+from .assessment_schemas import TopicAssessmentSummary
+from .weekly import CompletedWeek
 
 router = APIRouter(prefix="/api/v1", tags=["manual-workflow"], responses={
     code: {"model": ErrorResponse} for code in (404, 409, 422, 501, 503)})
@@ -37,7 +41,7 @@ def update_passport(topic_id: str, body: PassportUpdate, request: Request) -> To
                                  version=current.passport.version + 1)
         tx.update_passport(topic_id, passport, expected_version=body.version, author=body.author,
                            reason=body.reason, title=body.title)
-        return tx.get_topic(topic_id, request.app.state.settings.app_model_mode)
+        return public_topic(tx.get_topic(topic_id, request.app.state.settings.app_model_mode))
 
 
 def validate_issue_ref(value: str | None, allowed_hosts: str) -> None:
@@ -67,8 +71,9 @@ def resolve_review(review_id: str, body: ResolveReviewRequest, request: Request)
 @router.post("/topics/{topic_id}/merge-preview", response_model=MergePreview)
 def merge_preview(topic_id: str, body: MergePreviewRequest, request: Request) -> MergePreview:
     no_query(request)
-    return HumanWorkflow(request.app.state.repository).merge_preview(topic_id, body.target_topic_id,
+    preview = HumanWorkflow(request.app.state.repository).merge_preview(topic_id, body.target_topic_id,
         request.app.state.settings.app_model_mode)
+    return MergePreview(source=public_topic(preview.source), target=public_topic(preview.target), decision_conflict=preview.decision_conflict)
 
 
 @router.post("/topics/{topic_id}/merge", response_model=MergeResult)
@@ -115,3 +120,61 @@ def report(request: Request, product_id: Literal["webneft"] = "webneft",
     text = build_report(request.app.state.repository, request.app.state.settings.app_model_mode,
         RunRequest(product_id=product_id, date_from=date_from, date_to=date_to))
     return PlainTextResponse(text, media_type="text/markdown")
+
+
+@router.get("/reports/weekly", response_class=PlainTextResponse)
+def weekly_report(request: Request):
+    no_query(request)
+    from .weekly import build_weekly_report
+    return PlainTextResponse(build_weekly_report(request.app.state.repository, request.app.state.settings.app_model_mode),
+        media_type="text/markdown", headers={"Content-Disposition": 'attachment; filename="gpn-insight-weekly.md"'})
+
+
+@router.get("/reports/weekly/period", response_model=CompletedWeek)
+def weekly_period(request: Request):
+    no_query(request)
+    from .weekly import completed_week
+    return completed_week()
+
+
+@router.get("/sources/{source_id}/processing", response_model=ProcessingDetail)
+def processing_result(source_id: str, request: Request, source_version: int | None = None, revision_id: str | None = None):
+    if any(k not in {"source_version", "revision_id"} or len(request.query_params.getlist(k)) != 1 for k in request.query_params):
+        raise RepositoryError("UNSUPPORTED_FILTER", "Допустимы source_version и revision_id.", 422)
+    repo = request.app.state.repository
+    with repo.transaction() as tx:
+        source = tx.get_source(source_id, version=source_version)
+        result = tx.processing_result(source_id, version=source_version, revision_id=revision_id)
+        if result is None:
+            raise RepositoryError("PROCESSING_RESULT_NOT_FOUND", "Для этой версии нет partial результата. Старый текстовый результат доступен в источнике.", 404)
+        need_ids = [r[0] for r in tx._db.execute("SELECT need_id FROM processing_needs WHERE revision_id=? ORDER BY need_id", (result.revision_id,))]
+        assessments = {nid: tx.assessment(nid, result.analysis_digest) for nid in need_ids}
+        # Полный envelope содержит только masked normalized text, не originals.
+        return {"format_version": "partial-source-v1", "result": result,
+                "manual_recheck_required": source.manual_recheck_required,
+                "current_head_revision": source.current_result_revision, "is_current": source.current_result_revision == result.revision_id,
+                "analysis_pending": source.analysis_pending if source.current_result_revision == result.revision_id else None,
+                "assessments": assessments, "unassessed_need_ids": [n for n, v in assessments.items() if v is None]}
+
+
+@router.get("/topics/{topic_id}/assessment-summary", response_model=TopicAssessmentSummary)
+def topic_assessments(topic_id: str, request: Request):
+    no_query(request)
+    with request.app.state.repository.transaction() as tx:
+        card = tx.get_topic(topic_id, request.app.state.settings.app_model_mode)
+        categories, priorities, missing = {}, {}, set()
+        for source in card.sources:
+            result = tx.processing_result(source.ticket.source_id) if tx._has_processing() else None
+            for need in source.needs:
+                if need.need_id not in card.topic.need_ids:
+                    continue
+                assessment = tx.assessment(need.need_id, result.analysis_digest) if result and not source.analysis_pending else None
+                if assessment is None:
+                    missing.add(source.ticket.source_id)
+                    continue
+                categories.setdefault(assessment.assessment.category, set()).add(source.ticket.source_id)
+                priorities.setdefault(assessment.assessment.priority, set()).add(source.ticket.source_id)
+        return {"format_version": "topic-assessment-summary-v1", "topic_id": topic_id, "topic_version": card.topic.version,
+            "unit": "sources", "source_count": len(card.sources), "unassessed_source_count": len(missing),
+            "categories": {k: len(v) for k, v in categories.items()}, "priorities": {k: len(v) for k, v in priorities.items()},
+            "aggregation": "distinct-source-per-value; categories/priorities overlap; no inferred normal priority"}

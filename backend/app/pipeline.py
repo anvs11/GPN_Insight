@@ -54,6 +54,8 @@ class PipelineAdapters:
     normalizer: Normalizer
     analysis: Analysis
     profile: ProcessingProfile
+    partial: bool = False
+    assessor: object | None = None
 
 
 class RunStopped(Exception):
@@ -97,6 +99,8 @@ class Pipeline:
         success = failed = completed = reused = 0
         origins = set()
         ordered_needs = []
+        material_counts = dict(total=0, successful=0, failed=0, empty=0, usable=0)
+        source_counts = dict(total=0, complete=0, partial=0, failed=0, empty=0)
 
         def update(stage):
             with self.repo.transaction() as tx:
@@ -116,6 +120,11 @@ class Pipeline:
                     "origins": sorted(origins),
                     "completed_steps": completed,
                     "reused_steps": reused,
+                    **({"processing_policy": "partial-media-v1",
+                        "material_coverage": {"unit": "materials", **material_counts,
+                            "ratio": material_counts["successful"] / material_counts["total"] if material_counts["total"] else None},
+                        "source_coverage": {"unit": "sources", **source_counts}}
+                       if self.adapters.partial else {}),
                 }))
 
         def error(source_id, stage, exc, asset_id=None):
@@ -224,6 +233,35 @@ class Pipeline:
         # Первый проход целиком заканчивается до любого назначения.
         for source in sources:
             source_id = source.ticket.source_id
+
+            if self.adapters.partial:
+                from .partial_pipeline import process_source
+                try:
+                    prepared = process_source(self, source, run_id, check_metadata)
+                    result, extraction, steps, reused_count, extra_errors = prepared
+                    completed += steps
+                    reused += reused_count
+                    errors.extend(result.document.errors)
+                    errors.extend(extra_errors)
+                    for name in material_counts:
+                        material_counts[name] += getattr(result.coverage, name)
+                    success += result.coverage.successful
+                    failed += result.coverage.failed
+                    source_counts["total"] += 1
+                    source_counts[result.state] += 1
+                    origins.update(m.metadata.origin for m in result.materials if m.metadata)
+                    if extraction is not None:
+                        ordered_needs.extend((source, need) for need in extraction.needs)
+                except Exception as exc:
+                    error(source_id, "processing", exc)
+                    units = len(source.ticket.assets) + int(bool(source.ticket.text) or not source.ticket.assets)
+                    failed += units
+                    material_counts["total"] += units
+                    material_counts["failed"] += units
+                    source_counts["total"] += 1
+                    source_counts["failed"] += 1
+                update("extract")
+                continue
 
             if source.ticket.assets:
                 failed += 1 + len(source.ticket.assets)
@@ -434,6 +472,12 @@ class Pipeline:
                         source.ticket.source_id,
                         source.ticket.product_id,
                     )
+
+                    if self.adapters.partial and self.repo.has_active_assignment(need.need_id):
+                        # Неизменная потребность сохраняет принятое назначение даже при новом digest.
+                        reused += 1
+                        update("assignment")
+                        continue
 
                     if any(
                         o.need_id == need.need_id

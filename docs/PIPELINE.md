@@ -1,5 +1,7 @@
 # Запуски, checkpoints и строгий текстовый replay
 
+A4–A7 от 09.11 подключает явный partial/media профиль: независимые success cache, extraction по digest пригодного контекста, SQLite revisions, отдельные оценки category/priority и два последовательных прохода. Полные контракты/проверки/границы — [PARTIAL_WEEKLY_HANDOFF.md](PARTIAL_WEEKLY_HANDOFF.md). MEDIA_PIPELINE_NOT_IMPLEMENTED остаётся правилом legacy text профиля, новый partial профиль обрабатывает synthetic media через точный replay. Live/скрытого fallback нет; нижние записи — история предыдущих срезов.
+
 Будущая media-интеграция: [существующие DTO, source/version/material и provenance](MEDIA_ANALYSIS_HANDOFF.md). Этот handoff не снимает текущие media-ограничения и не вводит новый runtime-профиль.
 
 Граница media import U1, 2026-11-07: источники с проверенными WAV/MP3/PNG/JPEG могут импортироваться и храниться, startup сверяет их файлы с полным реестром. Pipeline, Normalizer, checkpoints и модельные профили в этой задаче не менялись; MEDIA_PIPELINE_NOT_IMPLEMENTED остаётся явным отказом для assets. Успешный импорт не превращает ошибку анализа в «потребностей нет» и не означает готовность медийного replay. Правила хранения/приёмки — [IMPORT_HTTP.md](IMPORT_HTTP.md).

@@ -145,3 +145,31 @@ def migrate_v2(db: sqlite3.Connection) -> None:
     );
     UPDATE schema_version SET version=3 WHERE version=2;
     """)
+
+
+def migrate_v3(db: sqlite3.Connection) -> None:
+    execute_statements(db, """
+    CREATE TABLE processing_results (
+      revision_id TEXT PRIMARY KEY, product_id TEXT NOT NULL, source_id TEXT NOT NULL,
+      source_version INTEGER NOT NULL, profile_hash TEXT NOT NULL, analysis_digest TEXT NOT NULL,
+      body_json TEXT NOT NULL,
+      FOREIGN KEY(product_id,source_id,source_version) REFERENCES source_versions(product_id,source_id,version)
+    );
+    CREATE TABLE processing_heads (
+      product_id TEXT NOT NULL, source_id TEXT NOT NULL, source_version INTEGER NOT NULL,
+      revision_id TEXT NOT NULL REFERENCES processing_results(revision_id),
+      analyzed_revision TEXT REFERENCES processing_results(revision_id),
+      PRIMARY KEY(product_id,source_id,source_version),
+      FOREIGN KEY(product_id,source_id,source_version) REFERENCES source_versions(product_id,source_id,version)
+    );
+    CREATE TABLE processing_needs (
+      revision_id TEXT NOT NULL REFERENCES processing_results(revision_id),
+      need_id TEXT NOT NULL REFERENCES stored_needs(need_id), PRIMARY KEY(revision_id,need_id)
+    );
+    CREATE TABLE need_assessments (
+      need_id TEXT NOT NULL REFERENCES stored_needs(need_id),
+      revision_id TEXT NOT NULL REFERENCES processing_results(revision_id), body_json TEXT NOT NULL,
+      PRIMARY KEY(need_id,revision_id)
+    );
+    UPDATE schema_version SET version=4 WHERE version=3;
+    """)

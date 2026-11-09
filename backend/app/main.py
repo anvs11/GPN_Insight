@@ -13,6 +13,7 @@ from .config import Settings
 from .db import initialize
 from .gateways import UnavailableGateways, text_gateway
 from .imports_api import router as imports_router
+from .media_api import router as media_router
 from .ingestion.media_files import reconcile_import_storage, save_recovery_report
 from .pipeline import PipelineAdapters
 from .repositories import Repository, RepositoryError
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
     app.include_router(router)
     app.include_router(imports_router)
     app.include_router(workflow_router)
+    app.include_router(media_router)
     return app
 
 

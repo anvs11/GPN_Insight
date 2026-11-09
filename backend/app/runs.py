@@ -35,7 +35,8 @@ class RunService:
             with self.repo.transaction() as tx:
                 sources = tx.select_run_sources(request)
                 run = tx._create_run(Run(run_id=str(uuid4()), product_id=request.product_id, mode=self.mode,
-                    state="queued", stage="queued", created_at=now(), total_materials=sum(1 + len(s.ticket.assets) for s in sources),
+                    state="queued", stage="queued", created_at=now(), total_materials=sum(
+                        len(s.ticket.assets) + (int(bool(s.ticket.text) or not s.ticket.assets) if self.adapters.partial else 1) for s in sources),
                     coverage=0.0 if sources else None))
                 tx.save_run_inputs(run.run_id, request, self.adapters.profile, sources)
             try:
