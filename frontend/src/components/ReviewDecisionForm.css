@@ -1,0 +1,12 @@
+.review-decision { margin-top: 18px; padding: 18px 0; border-top: 1px solid var(--border); }
+.review-decision fieldset { min-width: 0; margin: 16px 0; padding: 18px; border: 1px solid var(--border); border-radius: 8px; }
+.review-decision label { display: flex; flex-direction: column; gap: 6px; margin: 16px 0; color: var(--text-h); }
+.review-decision input, .review-decision select, .review-decision textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; font: inherit; color: var(--text-h); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.review-decision textarea { resize: vertical; }
+.review-decision [aria-pressed=true] { border-color: var(--accent); background: var(--accent-bg); }
+.review-target { padding: 14px; margin: 14px 0; background: var(--code-bg); border-left: 3px solid var(--accent); }
+.review-decision h5 { font-size: 18px; color: var(--text-h); margin: 8px 0; }
+.review-confirmed { padding: 14px; border-left: 3px solid #488448; background: var(--code-bg); }
+.review-decision summary, .review-decision a { min-height: 44px; cursor: pointer; color: var(--accent); }
+.review-decision a { display: inline-flex; align-items: center; }
+@media (max-width: 700px) { .review-decision fieldset { padding: 12px; } }

@@ -57,7 +57,9 @@ function ErrorNotice({ error }: { error: ApiError }) {
   </div>
 }
 
-export function ProcessingPanel() {
+export function ProcessingPanel({ requireImport = false, importRevision = 0 }: { requireImport?: boolean; importRevision?: number } = {}) {
+  const [importConfirmed, setImportConfirmed] = useState(!requireImport)
+  const [importError, setImportError] = useState<ApiError | null>(null)
   const [health, setHealth] = useState<Health | null>(null)
   const [healthError, setHealthError] = useState<ApiError | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
@@ -79,6 +81,7 @@ export function ProcessingPanel() {
     healthController.current?.abort()
     setHealthLoading(true)
     setHealthError(null)
+    setImportError(null)
     setHealthRefresh(value => value + 1)
   }
 
@@ -91,6 +94,17 @@ export function ProcessingPanel() {
         if (!controller.signal.aborted) {
           setHealth(result)
           setHealthTime(new Date().toLocaleTimeString('ru-RU'))
+          if (requireImport) {
+            try {
+              const imports = await api.imports(controller.signal)
+              if (!controller.signal.aborted) {
+                setImportConfirmed(imports.some(entry => entry.result.counts.inserted + entry.result.counts.updated + entry.result.counts.unchanged > 0))
+                setImportError(null)
+              }
+            } catch (failure) {
+              if (!controller.signal.aborted) { setImportConfirmed(false); setImportError(errorOf(failure)) }
+            }
+          }
         }
       } catch (error) {
         if (!controller.signal.aborted) { setHealth(null); setHealthError(errorOf(error)) }
@@ -100,7 +114,7 @@ export function ProcessingPanel() {
     }
     void loadHealth()
     return () => { controller.abort() }
-  }, [healthRefresh])
+  }, [healthRefresh, requireImport, importRevision])
 
   useEffect(() => () => { startController.current?.abort() }, [])
 
@@ -139,7 +153,7 @@ export function ProcessingPanel() {
 
   async function start(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!health?.pipeline_ready || healthLoading || startController.current || invalidPeriod || active) return
+    if (!health?.pipeline_ready || !importConfirmed || healthLoading || startController.current || invalidPeriod || active) return
     const controller = new AbortController()
     startController.current = controller
     setStarting(true)
@@ -213,11 +227,13 @@ export function ProcessingPanel() {
 
     <form onSubmit={event => { void start(event) }} className="processing-form">
       <h3>Запустить обработку</h3>
-      <p>Период создания обращений по Москве, включая обе даты. Пустые поля — весь доступный период. Загрузка новых обращений через браузер ещё не подключена.</p>
+      <p>Период создания обращений по Москве, включая обе даты. Пустые поля — весь доступный период. Сначала подтвердите импорт в форме выше; предпросмотра недостаточно. Импорт и запуск анализа — отдельные действия.</p>
+      {requireImport && !healthLoading && !importConfirmed && <p>Сначала подтвердите непустой импорт. Одного предпросмотра недостаточно; подтверждение проверяется по журналу Backend.</p>}
+      {importError && <ErrorNotice error={importError} />}
       <div className="processing-fields">
         <label>С даты<input type="date" value={draft.from} onChange={event => setDraft({ ...draft, from: event.target.value })} /></label>
         <label>По дату<input type="date" value={draft.to} onChange={event => setDraft({ ...draft, to: event.target.value })} /></label>
-        <button disabled={!health?.pipeline_ready || healthLoading || starting || invalidPeriod || active}>
+        <button disabled={!health?.pipeline_ready || !importConfirmed || healthLoading || starting || invalidPeriod || active}>
           {starting ? 'Отправляем запрос…' : 'Запустить обработку'}
         </button>
       </div>

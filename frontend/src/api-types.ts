@@ -260,3 +260,69 @@ export interface TopicChangeEvent {
   request_hash: string | null
   result: Record<string, unknown> | null
 }
+
+
+// POST /imports (multipart manifest), GET /imports, GET /reviews.
+export interface ImportCounts {
+  inserted: number
+  updated: number
+  unchanged: number
+  invalid: number
+}
+export interface ImportIssue {
+  code: string
+  message: string
+  source_id: string | null
+  asset_id: string | null
+  field: string | null
+}
+export interface ImportPreview {
+  dataset_id: string | null
+  status: 'valid' | 'invalid'
+  counts: ImportCounts
+  errors: ImportIssue[]
+  warnings: string[]
+  can_commit: boolean
+}
+export interface ImportResult {
+  dataset_id: string
+  counts: ImportCounts
+  imported_at: string
+}
+export interface ImportLogEntry {
+  registration_id: string
+  product_id: string
+  result: ImportResult
+  synthetic: boolean
+}
+export interface ReviewResolution {
+  action: 'attach' | 'create' | 'insufficient_data' | 'merge' | 'keep_separate'
+  reason: string
+  author: string
+  resolved_at: string
+  topic_id: string | null
+  request_hash: string | null
+}
+export interface ReviewItem {
+  review_id: string
+  version: number
+  kind: 'assignment' | 'duplicate'
+  need_ids: string[]
+  topic_ids: string[]
+  candidate_topic_ids: string[]
+  reason: string
+  evidence_refs: EvidenceRef[]
+  status: 'open' | 'resolved' | 'insufficient_data'
+  resolution: ReviewResolution | null
+  requires_recheck: boolean
+}
+
+
+// Поддерживаемые UI действия существующего ResolveReviewRequest.
+// create/proposed_topic намеренно не входят в этот этап.
+export type ResolveReviewRequest = {
+  version: number
+  author: string
+  reason: string
+  topic_versions: Record<string, number>
+} & ({ action: 'attach'; topic_id: string } | { action: 'insufficient_data'; topic_id?: never })

@@ -1,4 +1,4 @@
-import type { SourceDetail, TopicChangeEvent, TopicDetail, TopicListItem, TopicStatus } from './api-types'
+import type { ImportPreview, ImportResult, ImportLogEntry, ReviewItem, SourceDetail, TopicChangeEvent, TopicDetail, TopicListItem, TopicStatus } from './api-types'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -128,4 +128,47 @@ export function isTopicChanges(value: unknown): value is TopicChangeEvent[] {
       item.before.topic_id === item.topic_id && item.after.topic_id === item.topic_id &&
       item.after.version === item.before.version + 1 && item.after.passport.version === item.before.passport.version + 1))) &&
     new Set(value.map(item => item.event_id)).size === value.length
+}
+
+
+function isImportCounts(value: unknown) {
+  return isObject(value) && ['inserted', 'updated', 'unchanged', 'invalid'].every(key => isCount(value[key]))
+}
+function isDataset(value: unknown) { return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value) }
+export function isImportPreview(value: unknown): value is ImportPreview {
+  if (!isObject(value) || !isImportCounts(value.counts) || !isObject(value.counts) ||
+    !Array.isArray(value.errors) || !value.errors.every((issue: unknown) => isObject(issue) &&
+      typeof issue.code === 'string' && typeof issue.message === 'string' &&
+      isNullableString(issue.source_id) && isNullableString(issue.asset_id) && isNullableString(issue.field)) ||
+    !isStrings(value.warnings) || (value.dataset_id !== null && !isDataset(value.dataset_id))) return false
+  const valid = value.errors.length === 0 && value.counts.invalid === 0
+  return value.can_commit === valid && value.status === (valid ? 'valid' : 'invalid') && (!valid || isDataset(value.dataset_id))
+}
+export function isImportResult(value: unknown): value is ImportResult {
+  return isObject(value) && isDataset(value.dataset_id) && isImportCounts(value.counts) &&
+    isObject(value.counts) && value.counts.invalid === 0 && isDate(value.imported_at)
+}
+export function isImportLog(value: unknown): value is ImportLogEntry[] {
+  return Array.isArray(value) && value.every((entry: unknown) => isObject(entry) &&
+    typeof entry.registration_id === 'string' && entry.registration_id.length > 0 &&
+    entry.product_id === 'webneft' && typeof entry.synthetic === 'boolean' && isImportResult(entry.result)) &&
+    new Set(value.map(entry => entry.registration_id)).size === value.length
+}
+export function isReviews(value: unknown): value is ReviewItem[] {
+  return Array.isArray(value) && value.every((item: unknown) => {
+    if (!isObject(item) || typeof item.review_id !== 'string' || !item.review_id || !isVersion(item.version) ||
+      !isStrings(item.need_ids) || !isStrings(item.topic_ids) || !isStrings(item.candidate_topic_ids) ||
+      typeof item.reason !== 'string' || !Array.isArray(item.evidence_refs) || !item.evidence_refs.every(isEvidence) ||
+      typeof item.requires_recheck !== 'boolean') return false
+    if (item.kind === 'assignment' ? item.need_ids.length === 0 || item.topic_ids.length !== 0 :
+      item.kind !== 'duplicate' || item.topic_ids.length !== 2 || new Set(item.topic_ids).size !== 2 || item.need_ids.length !== 0) return false
+    if (item.status === 'open') return item.resolution === null
+    const resolution = item.resolution
+    return (item.status === 'resolved' || item.status === 'insufficient_data') && isObject(resolution) &&
+      (item.kind === 'assignment' ? ['attach', 'create', 'insufficient_data'] : ['merge', 'keep_separate']).includes(String(resolution.action)) &&
+      typeof resolution.reason === 'string' && typeof resolution.author === 'string' && isDate(resolution.resolved_at) &&
+      isNullableString(resolution.topic_id) && isNullableString(resolution.request_hash) &&
+      (item.status === 'insufficient_data') === (resolution.action === 'insufficient_data') &&
+      (!['attach', 'merge'].includes(String(resolution.action)) || typeof resolution.topic_id === 'string')
+  }) && new Set(value.map(item => item.review_id)).size === value.length
 }
