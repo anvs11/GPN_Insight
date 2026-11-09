@@ -1,4 +1,4 @@
-import type { PassportExample, PassportUpdate, SourceDetail, TopicChangeEvent, TopicDetail } from './api-types'
+import type { EvidenceRef, PassportExample, PassportUpdate, SourceDetail, TopicChangeEvent, TopicDetail } from './api-types'
 import { isTopicSnapshot } from './api-validators'
 
 export function sameValue(left: unknown, right: unknown): boolean {
@@ -55,10 +55,14 @@ export function passportEvidence(detail: TopicDetail, extraSources: SourceDetail
   const unique = refs.filter((ref, index) => refs.findIndex(item => sameValue(item, ref)) === index)
   return unique.map(ref => {
     const source = sources.findLast(item => item.ticket.source_id === ref.source_id)
-    const document = source?.document
-    return { ref, verified: Boolean(ref.quote.trim() && source && !source.requires_analysis && document &&
-      document.version === source.source_version && document.content_hash === source.content_hash &&
-      source.ticket.product_id === detail.topic.passport.product_id &&
-      document.fragments.some(fragment => fragment.fragment_id === ref.fragment_id && fragment.text.includes(ref.quote))) }
+    return { ref, verified: evidenceVerified(source, ref, detail.topic.passport.product_id) }
   })
+}
+
+export function evidenceVerified(source: SourceDetail | undefined, ref: EvidenceRef, productId: string) {
+  const document = source?.document
+  return Boolean(ref.quote.trim() && source && !source.requires_analysis && document &&
+    document.version === source.source_version && document.content_hash === source.content_hash &&
+    source.ticket.product_id === productId && document.product_id === productId &&
+    document.fragments.some(fragment => fragment.fragment_id === ref.fragment_id && fragment.text.includes(ref.quote)))
 }

@@ -318,11 +318,24 @@ export interface ReviewItem {
 }
 
 
-// Поддерживаемые UI действия существующего ResolveReviewRequest.
-// create/proposed_topic намеренно не входят в этот этап.
+// ProposedTopic и ResolveReviewRequest из OpenAPI: ID, продукт и версии
+// новой темы назначает сервер, scope_confirmed остаётся false.
+export interface ProposedTopic {
+  title: string
+  summary: string
+  scenario: string
+  need_statement: string
+  scope: string
+  inclusion_examples: PassportExample[]
+  exclusion_examples: PassportExample[]
+}
 export type ResolveReviewRequest = {
   version: number
   author: string
   reason: string
   topic_versions: Record<string, number>
-} & ({ action: 'attach'; topic_id: string } | { action: 'insufficient_data'; topic_id?: never })
+} & (
+  { action: 'attach'; topic_id: string; proposed_topic?: never } |
+  { action: 'insufficient_data'; topic_id?: never; proposed_topic?: never } |
+  { action: 'create'; proposed_topic: ProposedTopic; topic_id?: never }
+)
