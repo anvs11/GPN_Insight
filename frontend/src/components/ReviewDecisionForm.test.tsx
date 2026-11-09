@@ -63,7 +63,7 @@ describe('Решения Review: два действия без потери ч�
     await screen.findByText('Решение Review подтверждено повторным GET, историей и проверкой связей.')
     expect(save.mock.calls[0][1]).toEqual(request)
     expect(screen.queryByLabelText('Существующая тема')).toBeNull()
-    expect(screen.getByText(/Создание новой темы появится следующим этапом/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Создать новую тему' })).toBeTruthy()
   })
   it('не отправляет пустые автора/причину и не выбирает тему вместо человека', async () => {
     const save = vi.spyOn(api, 'resolveReview')

@@ -6,6 +6,8 @@ import { topicStatusLabels } from '../topic-labels'
 import { contextKey, historyPreserved, reviewReadConsistent, reviewRequestHash, reviewVersions, verifyReview } from '../review-verification'
 import type { ReviewAttempt, ReviewContext } from '../review-verification'
 import { sameValue } from '../passport-verification'
+import { emptyProposal, proposalProblem } from '../review-create'
+import { ReviewCreateFields } from './ReviewCreateFields'
 import './ReviewDecisionForm.css'
 
 function asError(failure: unknown) {
@@ -13,14 +15,18 @@ function asError(failure: unknown) {
     code: 'REQUEST_FAILED', message: 'Решение не подтверждено. Проверьте соединение и повторите чтение без новой записи.',
   })
 }
-async function readContext(id: string, signal: AbortSignal): Promise<ReviewContext> {
+async function readContext(id: string, signal: AbortSignal, withSources = false): Promise<ReviewContext> {
   const [review, history, topics] = await Promise.all([
     api.review(id, signal), api.reviewHistory(id, signal), api.topicCatalog(signal),
   ])
   if (!reviewReadConsistent(review, history)) throw new ApiError(200, {
     code: 'REVIEW_READ_CONFLICT', message: 'Review изменился во время чтения истории. Подтверждение результата не получено; повторите только чтение без новой записи.',
   })
-  return { review, history, topics }
+  const sources = withSources ? await Promise.all([...new Set(review.evidence_refs.map(ref => ref.source_id))]
+    .map(sourceId => api.source(sourceId, signal))) : undefined
+  const createdChanges = review.resolution?.action === 'create' && review.resolution.topic_id
+    ? await api.topicChanges(review.resolution.topic_id, signal) : undefined
+  return { review, history, topics, sources, createdChanges }
 }
 
 export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
@@ -31,6 +37,7 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
   const [latest, setLatest] = useState<ReviewContext | null>(null)
   const [action, setAction] = useState<ResolveReviewRequest['action']>('attach')
   const [targetId, setTargetId] = useState('')
+  const [proposal, setProposal] = useState(emptyProposal)
   const [author, setAuthor] = useState('')
   const [reason, setReason] = useState('')
   const [phase, setPhase] = useState<'idle' | 'loading' | 'sending' | 'checking'>('loading')
@@ -65,8 +72,8 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
   const selected = base?.topics.find(card => card.topic.topic_id === targetId)
   const versions = base ? reviewVersions(base, action, targetId) : {}
   const blocked = busy || !base || closed || stale || propChanged || needsAccept || pending !== null ||
-    (action === 'attach' && !selected)
-  const canAccept = !busy && !stale && !pending && latest?.review.status === 'open' && !latest.review.requires_recheck && needsAccept
+    (action === 'attach' && !selected) || (action === 'create' && (!base?.sources || readError !== null))
+  const canAccept = !busy && !stale && !pending && !readError && latest?.review.status === 'open' && !latest.review.requires_recheck && needsAccept
   const canRepeat = !busy && !stale && pending && checkedHash === pending.hash && !pending.receipt && latest?.review.status === 'open' &&
     !latest.review.requires_recheck && latest.review.version === pending.request.version &&
     sameValue(pending.request.topic_versions, reviewVersions(latest, pending.request.action,
@@ -87,14 +94,14 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
   async function readLatest(controller: AbortController, attempt: ReviewAttempt | null) {
     setPhase('checking'); setReadError(null)
     try {
-      const next = await readContext(item.review_id, controller.signal)
+      const next = await readContext(item.review_id, controller.signal, action === 'create' || attempt?.request.action === 'create')
       if (controller.signal.aborted) return
       if (base && !historyPreserved(base.history, next.history)) throw new ApiError(200, {
         code: 'REVIEW_HISTORY_NOT_CONFIRMED', message: 'Прежняя история Review не подтверждена. Новая запись заблокирована.',
       })
       setLatest(next); setCheckedHash(attempt?.hash ?? null)
       if (!attempt) {
-        if (!base) setBase(next)
+        if (!base || contextKey(base) === contextKey(next)) setBase(next)
         setNeedsAccept(previous => Boolean(base && contextKey(base) !== contextKey(next)) || previous)
         onRead(next.review)
         return
@@ -138,16 +145,39 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
     if (!author.trim() || !reason.trim()) {
       setError(new ApiError(0, { code: 'FORM_INVALID', message: 'Укажите непустые поля автора и причины решения.' })); return
     }
+    if (action === 'create') {
+      const problem = proposalProblem(proposal, base.review, base.sources ?? [])
+      if (problem) { setError(new ApiError(0, { code: 'PROPOSAL_INVALID', message: problem })); return }
+    }
     const controller = begin('sending')
     if (!controller) return
     try {
       const common = { version: base.review.version, author, reason, topic_versions: versions }
-      const request: ResolveReviewRequest = action === 'attach' ? { ...common, action, topic_id: targetId } : { ...common, action }
+      const request: ResolveReviewRequest = action === 'attach' ? { ...common, action, topic_id: targetId } :
+        action === 'create' ? { ...common, action, proposed_topic: structuredClone(proposal) } : { ...common, action }
       const hash = await reviewRequestHash(item.review_id, request)
       if (!controller.signal.aborted) await send(controller, { before: base, request, hash })
     } catch (failure) {
       if (!controller.signal.aborted) setError(asError(failure))
     } finally { finish(controller) }
+  }
+  async function chooseCreate() {
+    setAction('create')
+    const controller = begin('loading')
+    if (!controller) return
+    try {
+      const next = await readContext(item.review_id, controller.signal, true)
+      if (controller.signal.aborted) return
+      setLatest(next)
+      if (!base || contextKey(base) === contextKey(next)) setBase(next)
+      else setNeedsAccept(true)
+      onRead(next.review)
+    } catch (failure) { if (!controller.signal.aborted) setReadError(asError(failure)) }
+    finally { finish(controller) }
+  }
+  function commandLabel(request: ResolveReviewRequest) {
+    return request.action === 'attach' ? 'Присоединить к теме ' + request.topic_id :
+      request.action === 'create' ? 'Создать новую тему «' + request.proposed_topic.title + '»' : 'Недостаточно данных'
   }
   async function check() {
     const controller = begin('checking')
@@ -163,7 +193,7 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
 
   return <section className="review-decision" aria-label={'Решение Review ' + item.review_id}>
     <h4>Решение и история Review</h4>
-    <p>Доступны присоединение к существующей теме и отметка «Недостаточно данных». Создание новой темы появится следующим этапом.</p>
+    <p>Доступны присоединение к существующей теме, создание новой темы и отметка «Недостаточно данных».</p>
     {busy && <p role="status">{phase === 'loading' ? 'Загружаем Review, историю и каталог тем…' :
       phase === 'sending' ? 'Отправляем решение Review…' : 'Проверяем Review, историю и связи повторным GET…'}</p>}
     <button type="button" disabled={busy} onClick={() => { void check() }}>Проверить Review без повторной записи</button>
@@ -176,7 +206,7 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
       <small>{error.status > 0 ? 'HTTP ' + error.status + ' · ' : ''}{error.code}</small></div>}
     {readError && <div role="alert" className="topic-list-error"><p>{readError.message}</p><small>{readError.code}</small></div>}
     {pending && <div className="topic-list-stale"><p><strong>Исходная команда ещё не подтверждена. Новый POST автоматически не отправляется.</strong></p>
-      <p>Действие: {pending.request.action === 'attach' ? 'Присоединить к теме ' + pending.request.topic_id : 'Недостаточно данных'} · Автор: {pending.request.author}</p>
+      <p>Действие: {commandLabel(pending.request)} · Автор: {pending.request.author}</p>
       <p className="topic-text">Причина исходной команды: {pending.request.reason}</p>
       {canRepeat && <><p>После успешного чтения Review ещё открыт. По вашей кнопке можно повторить только исходную команду с теми же версиями и полями.
         Backend распознаёт её хеш и не создаёт повторное решение, если запись уже прошла. Новые значения черновика не отправятся.</p>
@@ -186,10 +216,13 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
       <p>{confirmation.kind === 'confirmed'
         ? 'Решение Review подтверждено повторным GET, историей и проверкой связей.'
         : 'Исходное решение найдено в истории, но Review или темы после него изменились. Проверьте актуальные данные.'}</p>
-      <p>Подтверждённая команда: {confirmation.request.action === 'attach' ? 'Присоединить к теме ' + confirmation.request.topic_id : 'Недостаточно данных'} · Автор: {confirmation.request.author}.</p>
+      <p>Подтверждённая команда: {commandLabel(confirmation.request)} · Автор: {confirmation.request.author}.</p>
       <p className="topic-text">Сохранённая причина: {confirmation.request.reason}</p>
       {(author !== confirmation.request.author || reason !== confirmation.request.reason || action !== confirmation.request.action ||
-        (confirmation.request.action === 'attach' && targetId !== confirmation.request.topic_id)) && <p>Новые значения черновика не отправлены. Подтверждена исходная команда, указанная выше.</p>}
+        (confirmation.request.action === 'attach' && targetId !== confirmation.request.topic_id) ||
+        (confirmation.request.action === 'create' && !sameValue(proposal, confirmation.request.proposed_topic))) && <p>Новые значения черновика не отправлены. Подтверждена исходная команда, указанная выше.</p>}
+      {confirmation.request.action === 'create' && <p>Созданная тема: {base?.review.resolution?.topic_id}.
+        В списке выберите «Все темы»: новая тема с одним обращением не обязана попадать в «Повторяющиеся».</p>}
       <p>Обновите список тем и открытую карточку их кнопками. Фильтры и несохранённые черновики остаются на странице.</p>
       <a href="#topic-list-title">Перейти к темам и карточкам</a>
     </div>}
@@ -212,13 +245,15 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
         <fieldset disabled={busy || closed}><legend>Подготовить решение</legend>
           <div className="topic-actions">
             <button type="button" aria-pressed={action === 'attach'} onClick={() => setAction('attach')}>Присоединить к теме</button>
+            <button type="button" aria-pressed={action === 'create'} onClick={() => { void chooseCreate() }}>Создать новую тему</button>
             <button type="button" aria-pressed={action === 'insufficient_data'} onClick={() => setAction('insufficient_data')}>Недостаточно данных</button>
           </div>
           {action === 'attach' && <><label>Существующая тема<select value={targetId} onChange={event => setTargetId(event.target.value)}>
             <option value="">Выберите тему</option>
             {targetId && !selected && <option value={targetId} disabled>Выбранная тема больше недоступна: {targetId}</option>}
             {base.topics.map(card => <option key={card.topic.topic_id} value={card.topic.topic_id}>{card.topic.title} · {card.topic.topic_id} · v{card.topic.version}</option>)}
-          </select></label>{base.topics.length === 0 && <p>Доступных тем нет. Можно отметить недостаточность данных; создание новой темы пока не подключено.</p>}</>}
+          </select></label>{base.topics.length === 0 && <p>Доступных тем нет. Можно создать новую тему или отметить недостаточность данных.</p>}</>}
+          {action === 'create' && <ReviewCreateFields proposal={proposal} review={base.review} sources={base.sources ?? []} onChange={setProposal} />}
           {action === 'attach' && selected && <aside className="review-target" aria-label="Выбранная тема">
             <h5>{selected.topic.title}</h5><p>{selected.topic.passport.need_statement}</p><p>Границы: {selected.topic.passport.scope}</p>
             <p>ID: {selected.topic.topic_id} · {topicStatusLabels[selected.topic.status]} · Версия: {selected.topic.version}</p>
@@ -226,6 +261,7 @@ export function ReviewDecisionForm({ item, stale, onRead, onBusyChange }: {
             <p>{selected.synthetic ? 'Синтетические данные.' : 'Не отмечено как синтетическое.'} Сопоставление подтверждает человек.</p>
           </aside>}
           <p>{action === 'attach' ? 'Будут присоединены все потребности этого Review. Прежние назначения этих потребностей будут заменены.' :
+            action === 'create' ? 'Будет создана новая тема с паспортом и всеми потребностями Review. Прежние назначения этих потребностей будут сняты.' :
             'Новые связи не появятся. Прежние назначения этих потребностей, если они есть, будут сняты; потребности останутся в источниках.'}</p>
           <p>Версии затрагиваемых тем: {Object.entries(versions).map(([id, version]) => id + ': ' + version).join('; ') || 'затрагиваемых тем нет'}.</p>
           <label>Автор решения Review<input required value={author} onChange={event => setAuthor(event.target.value)} /></label>
