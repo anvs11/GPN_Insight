@@ -316,3 +316,13 @@ export interface ReviewItem {
   resolution: ReviewResolution | null
   requires_recheck: boolean
 }
+
+
+// Поддерживаемые UI действия существующего ResolveReviewRequest.
+// create/proposed_topic намеренно не входят в этот этап.
+export type ResolveReviewRequest = {
+  version: number
+  author: string
+  reason: string
+  topic_versions: Record<string, number>
+} & ({ action: 'attach'; topic_id: string } | { action: 'insufficient_data'; topic_id?: never })

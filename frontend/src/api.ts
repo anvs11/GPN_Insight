@@ -1,4 +1,4 @@
-import type { ImportLogEntry, ImportPreview, ImportResult, ReviewItem, ApiErrorBody, DecisionUpdate, Health, PassportUpdate, Run, RunRequest, SourceDetail, TopicChangeEvent, TopicDetail, TopicFilters, TopicListItem } from './api-types'
+import type { ResolveReviewRequest, ImportLogEntry, ImportPreview, ImportResult, ReviewItem, ApiErrorBody, DecisionUpdate, Health, PassportUpdate, Run, RunRequest, SourceDetail, TopicChangeEvent, TopicDetail, TopicFilters, TopicListItem } from './api-types'
 import { isImportLog, isImportPreview, isImportResult, isReviews, isSourceDetail, isTopicChanges, isTopicDetail, isTopicListItem } from './api-validators'
 
 export class ApiError extends Error {
@@ -54,7 +54,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(0, {
       code: controller.signal.aborted ? 'REQUEST_TIMEOUT' : 'NETWORK_UNAVAILABLE',
       message: controller.signal.aborted
-        ? init.method === 'PATCH'
+        ? path.endsWith('/resolve')
+          ? 'Сервер не ответил за 15 секунд. Решение Review могло сохраниться: проверьте Review и историю без повторной записи.'
+          : init.method === 'PATCH'
           ? 'Сервер не ответил за 15 секунд. Решение могло сохраниться: проверьте карточку перед повторной отправкой.'
           : 'Сервер не ответил за 15 секунд. Запрос мог быть принят: проверьте состояние перед повторным запуском.'
         : 'Не удалось связаться с сервером. Проверьте, что Backend запущен на 127.0.0.1:8000.',
@@ -71,7 +73,44 @@ function importBody(manifest: string) {
   return form
 }
 
+function isReview(value: unknown): value is ReviewItem { return isReviews([value]) }
+
 export const api = {
+  review: async (id: string, signal?: AbortSignal): Promise<ReviewItem> => {
+    const result = await request<unknown>('/reviews/' + encodeURIComponent(id), { signal })
+    if (!isReview(result) || result.review_id !== id) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Review не соответствует контракту или выбранному ID. Повторите чтение.',
+    })
+    return result
+  },
+  reviewHistory: async (id: string, signal?: AbortSignal): Promise<ReviewItem[]> => {
+    const result = await request<unknown>('/reviews/' + encodeURIComponent(id) + '/history', { signal })
+    if (!Array.isArray(result) || result.length === 0 ||
+      !result.every((entry: unknown, index): entry is ReviewItem => isReview(entry) &&
+        entry.review_id === id && entry.version === index + 1)) {
+      throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'История Review неполна или не соответствует контракту. Сохранение не подтверждено.' })
+    }
+    return result
+  },
+  resolveReview: async (id: string, body: ResolveReviewRequest, signal?: AbortSignal): Promise<ReviewItem> => {
+    const result = await request<unknown>('/reviews/' + encodeURIComponent(id) + '/resolve', {
+      method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (!isReview(result) || result.review_id !== id) throw new ApiError(200, {
+      code: 'INVALID_RESPONSE', message: 'Ответ решения Review не соответствует контракту. Проверьте результат чтением без повторной записи.',
+    })
+    return result
+  },
+  topicCatalog: async (signal?: AbortSignal): Promise<TopicDetail[]> => {
+    // Нужны полные карточки, включая одиночные темы и темы с нулём активных связей.
+    const result = await request<unknown>('/topics?support_level=all', { signal })
+    if (!Array.isArray(result) || !result.every(isTopicDetail) || result.some(item =>
+      item.period_stats !== null || item.topic.status === 'merged' || item.topic.passport.product_id !== 'webneft') ||
+      new Set(result.map(item => item.topic.topic_id)).size !== result.length) {
+      throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Каталог тем не соответствует контракту. Решение Review недоступно.' })
+    }
+    return result
+  },
   previewImport: async (manifest: string, signal?: AbortSignal): Promise<ImportPreview> => {
     const result = await request<unknown>('/imports?dry_run=true', { method: 'POST', body: importBody(manifest), signal })
     if (!isImportPreview(result)) throw new ApiError(200, {

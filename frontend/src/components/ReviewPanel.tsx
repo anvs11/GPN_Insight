@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import type { EvidenceRef, ReviewItem } from '../api-types'
 import { SourceViewer } from './SourceViewer'
+import { ReviewDecisionForm } from './ReviewDecisionForm'
 
 const statusLabels = { open: 'Ожидает проверки', resolved: 'Разрешено', insufficient_data: 'Недостаточно данных' }
 
@@ -10,10 +11,25 @@ export function ReviewPanel() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
   const [evidence, setEvidence] = useState<EvidenceRef | null>(null)
+  const [opened, setOpened] = useState<string[]>([])
+  const [mutating, setMutating] = useState<string | null>(null)
+  const mutationRef = useRef<string | null>(null)
   const requestRef = useRef<AbortController | null>(null)
+  const readReview = useCallback((current: ReviewItem) => {
+    requestRef.current?.abort(); setLoading(false)
+    setItems(previous => previous?.map(entry => entry.review_id === current.review_id ? current : entry) ?? [current])
+  }, [])
+  const busyChange = useCallback((id: string, busy: boolean) => {
+    if (busy && mutationRef.current !== null) return false
+    if (!busy && mutationRef.current !== id) return false
+    mutationRef.current = busy ? id : null; setMutating(mutationRef.current)
+    if (busy) { requestRef.current?.abort(); setLoading(false) }
+    return true
+  }, [])
   useEffect(() => () => requestRef.current?.abort(), [])
 
   async function load() {
+    if (mutationRef.current !== null) return
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller; setLoading(true); setError(null)
@@ -30,9 +46,9 @@ export function ReviewPanel() {
   }
   return <section className="topic-list review-panel" aria-labelledby="review-title">
     <header className="topic-list-heading"><h2 id="review-title">Проверка спорных результатов</h2>
-      <button type="button" onClick={() => { void load() }}>{loading ? 'Обновить запрос очереди' : 'Загрузить очередь проверки'}</button></header>
+      <button type="button" disabled={mutating !== null} onClick={() => { void load() }}>{loading ? 'Обновить запрос очереди' : 'Загрузить очередь проверки'}</button></header>
     <p>Здесь показаны сохранённые Backend случаи неоднозначного назначения потребностей и проверки дублей тем.</p>
-    <p>Список загружается по кнопке. Отсутствие записей не доказывает успешность анализа. Ручное разрешение этих случаев пока не подключено в интерфейсе.</p>
+    <p>Список загружается по кнопке. Отсутствие записей не доказывает успешность анализа. Для назначения доступны «Присоединить к теме» и «Недостаточно данных» с проверкой версий. Создание новой темы появится следующим этапом; разрешение дублей Backend пока не поддерживает.</p>
     {loading && <p role="status">Загружаем очередь проверки…</p>}
     {error && <div role="alert" className="topic-list-error"><p>{error.message}</p>
       <small>{error.status > 0 ? 'HTTP ' + error.status + ' · ' : ''}{error.code}</small></div>}
@@ -51,6 +67,11 @@ export function ReviewPanel() {
         </li>)}</ul>
         {item.resolution && <div><p>Решение Backend: {item.resolution.action} · {item.resolution.author} · {new Date(item.resolution.resolved_at).toLocaleString('ru-RU')}</p>
           <p>{item.resolution.reason}</p>{item.resolution.topic_id && <p>Целевая тема: {item.resolution.topic_id}</p>}</div>}
+        {item.kind === 'assignment' && !opened.includes(item.review_id) && <button type="button"
+          onClick={() => setOpened(previous => [...previous, item.review_id])}>Решение и история Review</button>}
+        {item.kind === 'assignment' && opened.includes(item.review_id) && <ReviewDecisionForm
+          item={item} stale={loading || error !== null || (mutating !== null && mutating !== item.review_id)}
+          onRead={readReview} onBusyChange={busyChange} />}
       </article>)}</>}
     <p><a href="#topic-list-title">Открыть существующий список тем и карточки</a></p>
     {evidence && <SourceViewer key={evidence.source_id + '/' + evidence.fragment_id} sourceId={evidence.source_id}
