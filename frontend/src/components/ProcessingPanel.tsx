@@ -265,6 +265,11 @@ export function ProcessingPanel({ requireImport = false, importRevision = 0 }: {
         <div><dt>Повторно использовано</dt><dd>{run.reused_steps}</dd></div>
       </dl>
       <p>Покрытие относится к подготовке материалов. Даже при 100% анализ может содержать ошибки.</p>
+      {run.processing_policy === 'partial-media-v1' && run.source_coverage && <section aria-label="Покрытие источников">
+        <p>Обработано обращений: {run.source_coverage.total}; полное покрытие: {run.source_coverage.complete}; частичное: {run.source_coverage.partial}; неуспешных: {run.source_coverage.failed}; пустых: {run.source_coverage.empty}.</p>
+        {run.material_coverage && <p>Среди обработанных материалов: пригодных {run.material_coverage.usable}, пустых успешных {run.material_coverage.empty}, ошибок {run.material_coverage.failed}.</p>}
+        <p>Обращения и вложения считаются раздельно. Частичный результат сохраняет полезный контекст и ошибки; он не означает полного анализа.</p>
+      </section>}
       {run.state === 'completed' && run.total_materials === 0 && <p>Обращений за период нет.</p>}
       {run.state === 'interrupted' && <p>Сервер прервал запуск. Новый запуск с тем же периодом сможет использовать успешные этапы; прежний ID не возобновляется.</p>}
       {run.failure_code && <div role="alert" className="processing-error"><strong>{run.failure_code}</strong><p>{run.failure_message}</p></div>}

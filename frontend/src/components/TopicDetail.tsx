@@ -6,6 +6,7 @@ import { SourceViewer } from './SourceViewer'
 import { DecisionForm } from './DecisionForm'
 import { PassportForm } from './PassportForm'
 import './TopicDetail.css'
+import { TopicAssessments } from './TopicAssessments'
 
 export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: string; onClose: () => void; onTopicUpdated?: (value: Detail) => void }) {
   const [detail, setDetail] = useState<Detail | null>(null)
@@ -96,6 +97,7 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
       <p>Происхождение: {detail.data_origin === 'authored' ? 'подготовлено вручную (authored)' : 'ответ модели (model)'}.
         {' '}Режим сервера: <strong>{detail.model_mode}</strong>. {detail.analysis_mode === null ? 'Результат модельного анализа не подтверждён.' : `Режим анализа: ${detail.analysis_mode}${detail.analysis_mode === 'replay' ? ' — сохранённые ответы' : ''}.`}</p>
       <p>Показатели и источники карточки — за всё время. Период списка их не ограничивает.</p>
+      {!error && !loading && <TopicAssessments key={`${detail.topic.topic_id}-${detail.topic.version}`} card={detail} />}
       <dl className="topic-detail-stats">
         <div><dt>ID темы</dt><dd>{detail.topic.topic_id}</dd></div>
         <div><dt>Статус</dt><dd>{topicStatusLabels[detail.topic.status]}</dd></div>

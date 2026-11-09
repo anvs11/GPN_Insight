@@ -1,5 +1,7 @@
 # GPN Insight
 
+UI media/weekly 09.11: подключены preview/commit/repeat с файлами, просмотр synthetic медиа, покрытие/оценки/приоритеты и формирование недельного отчёта. [Пошаговый показ в двух терминалах](docs/FRONTEND_MEDIA_WEEKLY.md). UI-срез ведётся в feat/frontend-media-weekly от опубликованного backend ac3ae94; merge в main выполняет пользователь.
+
 Срез 09.11 A4–A7: подключены partial/media replay Pipeline, SQLite v4 с backup/историей ревизий, категории/приоритеты с evidence, сводка завершённой MSK недели и безопасная выдача synthetic медиа. [Контракты и команды команды](docs/PARTIAL_WEEKLY_HANDOFF.md). Быстрая изолированная проверка из backend: `..\.venv\Scripts\python.exe -X utf8 -m scripts.check_partial_weekly_integration`. Live и новые UI media/report экраны не объявлены готовыми; нижние описания прежних срезов исторические.
 
 A1–A3 от 09.11: [partial/media contracts, Normalizer, strict replay и политика originals](docs/PARTIAL_MEDIA_FOUNDATION.md) реализованы как отдельная проверяемая связка. 728 backend tests/4 Windows symlink skip, 258 frontend tests/build; прежние SQL/prompts/pins сохранены. Production media Pipeline подключается следующим A4, live недоступен. Из backend: `..\.venv\Scripts\python.exe -X utf8 -m scripts.check_partial_media_foundation` — безопасная synthetic процедура partial→retry/reopen, не рабочая БД.

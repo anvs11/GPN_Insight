@@ -93,3 +93,22 @@ def prepare_pipeline_demo(folder):
         "app_recordings_root": recordings, "app_media_recordings_path": demo.recordings,
         "app_media_cache_root": folder / "cache"})
     return replace(demo, settings=settings), profile
+
+
+def prepare_partial_ui_demo(folder):
+    """Изолированное UI состояние: partial сохранён, файл восстановлен для retry."""
+    from app.bootstrap import configured_text_pipeline
+    from app.gateways import text_gateway
+    demo, profile = prepare_pipeline_demo(folder)
+    adapters, error = configured_text_pipeline(demo.settings, text_gateway(demo.settings))
+    assert error is None
+    path = damaged_png(demo)
+    raw = path.read_bytes()
+    try:
+        path.write_bytes(b"SYNTHETIC-CORRUPT")
+        first = run_sync(demo.repo, adapters, "synthetic-ui-partial")
+        assert first.state == "completed_with_errors"
+        saved = save_fixture_decision(demo.repo)
+    finally:
+        path.write_bytes(raw)
+    return demo, profile, saved
