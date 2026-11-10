@@ -9,11 +9,13 @@ import { TopicDetail } from './TopicDetail'
 import { SourceViewer } from './SourceViewer'
 import { WorkspaceDrawer } from './WorkspaceDrawer'
 import { SignalMap } from './SignalMap'
+import { SourceColumns, SourceTable, SourcePagination } from './SourceViews'
 
 const defaults = { q: '', category: '', priority: '', status: '', support: 'all', date_from: '', date_to: '' }
 export function Monitoring({ selected, onToggle, onReports, refresh }: {
   selected: Card[]; onToggle: (card: Card) => void; onReports: () => void; refresh: number
 }) {
+  const [sourceLayout, setSourceLayout] = useState<'columns' | 'list'>('columns')
   const [view, setView] = useState<'topics' | 'sources'>('topics')
   const [draft, setDraft] = useState(defaults), [filters, setFilters] = useState(defaults)
   const [offset, setOffset] = useState(0), [revision, setRevision] = useState(0)
@@ -46,6 +48,8 @@ export function Monitoring({ selected, onToggle, onReports, refresh }: {
   function close() { if (busy.current) { setNotice('Дождитесь ответа на сохранение. Панель остаётся открытой.'); return }; setOpened(null); setNotice('') }
   const currentPage = receivedView === view ? page : null
   const rows = currentPage?.items ?? []
+  function openCard(card: Card) { busy.current = false; setOpened(card) }
+  function navigate(next: number) { request.current?.abort(); setLoading(true); setError(''); setOffset(next) }
   return <>
     <div className="page-heading"><div><span className="eyebrow">ВЕБНЕФТЬ / ПРОДУКТОВАЯ ОБРАТНАЯ СВЯЗЬ</span><h1>Мониторинг <span className="count-chip">{currentPage?.total ?? '—'}</span></h1>
       <p>От обращений — к проверяемым потребностям и решениям.</p></div><button className="button-secondary" onClick={reload} disabled={loading}>↻ Обновить</button></div>
@@ -53,6 +57,10 @@ export function Monitoring({ selected, onToggle, onReports, refresh }: {
       <button role="tab" aria-selected={view === 'topics'} onClick={() => changeView('topics')}>Темы</button>
       <button role="tab" aria-selected={view === 'sources'} onClick={() => changeView('sources')}>Обращения</button>
     </div>
+    {view === 'sources' && <div className="source-view-switch" role="group" aria-label="Вид обращений">
+      <button className="button-secondary" aria-pressed={sourceLayout === 'columns'} onClick={() => setSourceLayout('columns')}>Колонки по приоритету</button>
+      <button className="button-secondary" aria-pressed={sourceLayout === 'list'} onClick={() => setSourceLayout('list')}>Список</button>
+    </div>}
     <p className="view-explanation">{view === 'topics' ? 'Темы объединяют похожие потребности из обращений. Повторяемость можно выбрать в фильтре ниже.' : 'Здесь все исходные обращения, включая неразобранные и ещё не обработанные.'}</p>
     <form className="monitor-filters surface" aria-label="Фильтры мониторинга" onSubmit={event => {
       event.preventDefault()
@@ -79,9 +87,14 @@ export function Monitoring({ selected, onToggle, onReports, refresh }: {
       {page && <p className="mode-notice">{page.model_mode === 'replay' ? 'Replay: сохранённые ответы для известных входов. Качество живой модели не измеряется.' : 'Live: результаты требуют проверки по источникам.'}</p>}
       {loading && <p role="status" className="loading-line">Загружаем {view === 'topics' ? 'темы' : 'обращения'}…</p>}
       {!loading && !error && currentPage && !rows.length && <div className="empty-state"><span>⌕</span><h3>По этим условиям ничего не найдено</h3><p>Измените фильтры или загрузите обращения. Отсутствие карточек не доказывает отсутствие потребностей.</p></div>}
-      <div className={'insight-grid' + (loading ? ' is-stale' : '')}>{rows.map(card => <WorkspaceCard key={cardKey(card)} card={card} selected={selected.some(s => cardKey(s) === cardKey(card))}
-        onSelect={() => { if (!loading && !error) onToggle(card) }} onOpen={() => { busy.current = false; setOpened(card) }} />)}</div>
-      {page && page.total > 24 && <div className="pagination"><button disabled={loading || offset === 0} onClick={() => { setLoading(true); setOffset(Math.max(0, offset - 24)) }}>Назад</button><span>{offset + 1}–{Math.min(offset + 24, page.total)} из {page.total}</span><button disabled={loading || offset + 24 >= page.total} onClick={() => { setLoading(true); setOffset(offset + 24) }}>Далее</button></div>}
+      {view === 'sources' ? sourceLayout === 'columns'
+        ? <SourceColumns key={JSON.stringify([filters, revision, refresh])} filters={filters} page={currentPage} loading={loading} error={error}
+            onOffset={navigate} onRetry={reload} selected={selected} onSelect={onToggle} onOpen={openCard} />
+        : <><SourceTable page={currentPage} loading={loading} error={error} selected={selected} onSelect={onToggle} onOpen={openCard} />
+            <SourcePagination page={currentPage} loading={loading} error={error} onOffset={navigate} /></>
+        : <><div className={'insight-grid' + (loading || error ? ' is-stale' : '')}>{rows.map(card => <WorkspaceCard key={cardKey(card)} card={card} selected={selected.some(s => cardKey(s) === cardKey(card))}
+        selectionDisabled={loading || Boolean(error)} onSelect={() => { if (!loading && !error) onToggle(card) }} onOpen={() => openCard(card)} />)}</div>
+      <SourcePagination page={currentPage} loading={loading} error={error} onOffset={navigate} /></>}
     </section><aside className="monitor-aside">{view === 'topics' && <SignalMap cards={rows} onOpen={setOpened} />}
       <section className="surface aside-selection"><span className="eyebrow">ВАША ПОДБОРКА</span><h3>Соберите важное <span className="count-chip">{selected.length}</span></h3><p>Отметьте карточки, добавьте своё резюме и сохраните отдельный отчёт.</p><button className="button-primary" onClick={onReports}>Перейти к отчётам</button></section>
       <button className="button-secondary" onClick={() => {
