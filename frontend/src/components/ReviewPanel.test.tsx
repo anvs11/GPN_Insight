@@ -7,6 +7,18 @@ import { sourceDetail } from '../test-fixtures/detail'
 import { ReviewPanel } from './ReviewPanel'
 
 describe('Чтение очереди проверки результатов', () => {
+  it('сворачивает результаты без повторной загрузки и не требует эскалации', async () => {
+    const read = vi.spyOn(api, 'reviews').mockResolvedValue([reviewItem])
+    render(<ReviewPanel />)
+    expect(screen.getByText(/не обязательная эскалация/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить очередь проверки' }))
+    await screen.findByRole('article')
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть результаты' }))
+    expect(screen.queryByRole('article')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить очередь проверки' }))
+    expect(screen.getByRole('article')).toBeTruthy()
+    expect(read).toHaveBeenCalledTimes(1)
+  })
   it('не считает отсутствие очереди успехом анализа и не запрашивает её до нажатия', async () => {
     const read = vi.spyOn(api, 'reviews').mockResolvedValue([])
     render(<ReviewPanel />)
@@ -36,7 +48,7 @@ describe('Чтение очереди проверки результатов', 
     render(<ReviewPanel />)
     fireEvent.click(screen.getByRole('button', { name: 'Загрузить очередь проверки' }))
     await screen.findByRole('article')
-    fireEvent.click(screen.getByRole('button', { name: 'Загрузить очередь проверки' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить результаты' }))
     await screen.findByText('Фильтр отклонён.')
     expect(screen.getByRole('article')).toBeTruthy()
     expect(screen.getByText(/Показана ранее полученная очередь/)).toBeTruthy()

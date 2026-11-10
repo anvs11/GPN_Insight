@@ -4,6 +4,7 @@ import { api, ApiError } from '../api'
 import type { ImportCounts, ImportLogEntry, ImportPreview, ImportResult } from '../api-types'
 import { maxManifestBytes, readTextManifest, textManifest } from '../import-manifest'
 import { SourceViewer } from './SourceViewer'
+import { WorkRules } from './WorkRules'
 import './ImportPanel.css'
 
 function failureOf(failure: unknown) {
@@ -151,8 +152,8 @@ export function ImportPanel({ onImported }: { onImported?: () => void } = {}) {
   const locked = busy === 'commit' || uncertain
   return <section className="topic-list import-panel" aria-labelledby="import-title">
     <h2 id="import-title">Импорт текстовых обращений</h2>
-    <p><strong>Только синтетические демонстрационные данные.</strong> Импорт сохраняет обращения, а анализ запускается отдельно.</p>
-    <p>Медиа, ссылки на оригинальные файлы и ручные промпты на этом экране не поддерживаются.</p>
+    <p className="import-introduction">Демонстрационные данные: сначала проверка, затем подтверждение импорта. Анализ запускается отдельно.</p>
+    <WorkRules><p>Только синтетические демонстрационные данные. Для файлов с вложениями выберите вкладку «Медиа».</p><p>Предпросмотр ничего не сохраняет и не вызывает модель. Правка сбрасывает разрешение на импорт.</p><p>Черновик сохраняется при переходах между разделами до перезагрузки страницы. Сохраните исходный файл у себя.</p></WorkRules>
     <form aria-label="Текстовый импорт" onSubmit={event => { void check(event) }}>
       <fieldset disabled={locked}>
         <legend>1. Подготовьте данные</legend>
@@ -175,8 +176,6 @@ export function ImportPanel({ onImported }: { onImported?: () => void } = {}) {
         <button type="submit" disabled={busy !== null || fileLoading}>{busy === 'preview' ? 'Проверяем набор…' : 'Предпросмотр'}</button>
       </fieldset>
     </form>
-    <p>Предпросмотр не записывает обращения и не вызывает модель. Любая правка сбрасывает прежнее разрешение на импорт.</p>
-    <p><small>Черновик сохраняется при ошибках и переходах по этой странице. Перезагрузка страницы его удалит: исходный файл сохраните у себя.</small></p>
     {fileLoading && <p role="status">Читаем выбранный файл…</p>}
     {busy && <p role="status">{busy === 'preview' ? 'Backend проверяет структуру и повторы…' : 'Сохраняем обращения. Дождитесь квитанции Backend…'}</p>}
     {localError && <p role="alert" className="topic-list-error">{localError}</p>}
@@ -222,9 +221,7 @@ export function ImportPanel({ onImported }: { onImported?: () => void } = {}) {
         <button type="button" onClick={() => setSourceId(id)}>Проверить источник {id}</button>
       </li>)}</ul>
     </section>}
-    <div className="topic-actions"><a href="#processing-title">Перейти к запуску обработки</a>
-      <a href="#topic-list-title">Перейти к темам и карточкам</a><a href="#review-title">Очередь проверки</a></div>
-    <p>В панели обработки обновите состояние сервера и проверьте live/replay. После обработки обновите список тем; для одиночных тем выберите «Все темы». Фильтры и открытые черновики сохраняются.</p>
+    {receipt && <div className="import-next-step"><strong>Далее — анализ импортированных обращений</strong><p>Откройте отдельный раздел обработки. После завершения результаты появятся в мониторинге.</p><a className="button-primary" href="#processing-title">Перейти к запуску обработки</a><a className="button-secondary" href="#topic-list-title">Перейти к темам и карточкам</a></div>}
     <button type="button" onClick={() => { void readJournal() }}>{journalBusy ? 'Обновить запрос журнала' : 'Загрузить журнал импортов'}</button>
     {journalBusy && <p role="status">Загружаем журнал импортов…</p>}
     {journalError && <div role="alert" className="topic-list-error"><p>{journalError.message}</p><small>{journalError.code}</small></div>}

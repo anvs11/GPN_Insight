@@ -18,6 +18,7 @@ from .ingestion.importer import MAX_MANIFEST_BYTES, import_from_directory
 from .media_replay import MediaRecording, MediaRecordingSet
 from .assessment_schemas import AssessmentResult, NeedAssessment, TopicAssessmentSummary
 from .weekly import CompletedWeek
+from .workspace_schemas import WorkspaceCard, WorkspacePage, ReportSelection, ReportDraft, ArchiveEntry, ArchivePage, ReportSnapshot, WeeklySchedule
 
 EXAMPLE_SCHEMAS = {
     cls.__name__: cls for cls in (
@@ -56,6 +57,8 @@ PROCESSING_SCHEMAS = {cls.__name__: cls for cls in (
 COMPLETION_SCHEMAS = {cls.__name__: cls for cls in (
     processing_schemas.ProcessingDetail, AssessmentResult, NeedAssessment, TopicAssessmentSummary, CompletedWeek,
 )}
+
+WORKSPACE_SCHEMAS = {cls.__name__: cls for cls in (WorkspaceCard, WorkspacePage, ReportSelection, ReportDraft, ArchiveEntry, ArchivePage, ReportSnapshot, WeeklySchedule)}
 
 
 def validate_examples(path: Path) -> int:
@@ -222,7 +225,7 @@ def main() -> int:
         elif args.command == "export-schemas":
             output = args.output or REPO_ROOT / "var/contracts/schemas.json"
             output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS | WORKFLOW_SCHEMAS | PROCESSING_SCHEMAS | COMPLETION_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
+            output.write_text(json.dumps({name: cls.model_json_schema() for name, cls in (EXAMPLE_SCHEMAS | STORAGE_SCHEMAS | PIPELINE_SCHEMAS | WORKFLOW_SCHEMAS | PROCESSING_SCHEMAS | COMPLETION_SCHEMAS | WORKSPACE_SCHEMAS).items()}, ensure_ascii=False, indent=2), encoding="utf-8")
             print("JSON Schema контрактов сохранены.")
         else:
             settings = Settings()

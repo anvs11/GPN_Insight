@@ -16,7 +16,7 @@ function wire(before = passportDetail) {
 }
 async function open() {
   render(<TopicDetail topicId={passportDetail.topic.topic_id} onClose={() => {}} />)
-  await userEvent.click(await screen.findByRole('button', { name: 'Редактировать паспорт и посмотреть историю' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Редактировать описание темы и историю' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Сохранить паспорт' })).toHaveProperty('disabled', false))
 }
 function fill() {
@@ -28,6 +28,14 @@ function fill() {
 function submit() { fireEvent.submit(screen.getByRole('form', { name: 'Форма паспорта' })) }
 
 describe('Редактор паспорта', () => {
+  it('сворачивает редактор без потери несохранённого описания', async () => {
+    wire(); await open()
+    fireEvent.change(screen.getByLabelText('Название темы'), { target: { value: 'Несохранённый черновик' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Свернуть редактирование описания' }))
+    expect(screen.queryByRole('form', { name: 'Форма паспорта' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать описание темы и историю' }))
+    expect(screen.getByLabelText('Название темы')).toHaveProperty('value', 'Несохранённый черновик')
+  })
   it('подтверждает запись только после GET карточки и истории, блокирует повторы и сохраняет черновик решения', async () => {
     const { topic, changes, patch } = wire()
     topic.mockResolvedValueOnce(passportDetail).mockResolvedValue(saved)
@@ -199,7 +207,7 @@ describe('Редактор паспорта', () => {
     const before: Detail = { ...passportDetail, topic: { ...passportDetail.topic, status: 'merged', canonical_topic_id: 'synthetic-main' } }
     const { patch } = wire(before)
     render(<TopicDetail topicId={before.topic.topic_id} onClose={() => {}} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Редактировать паспорт и посмотреть историю' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Редактировать описание темы и историю' }))
     await screen.findByText(/Паспорт меняется в основной теме synthetic-main/)
     expect(screen.getByLabelText('Автор изменения паспорта')).toHaveProperty('disabled', false)
     expect(screen.getByLabelText('Автор изменения паспорта').closest('fieldset')).toHaveProperty('disabled', true)
@@ -210,7 +218,7 @@ describe('Редактор паспорта', () => {
     vi.spyOn(api, 'topics').mockResolvedValueOnce([passportDetail]).mockResolvedValue([])
     render(<TopicList />)
     await userEvent.click(await screen.findByRole('button', { name: passportDetail.topic.title }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Редактировать паспорт и посмотреть историю' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Редактировать описание темы и историю' }))
     fireEvent.change(screen.getByLabelText('Причина изменения паспорта'), { target: { value: 'Несохранённая правка' } })
     fireEvent.change(screen.getByLabelText('Статус темы'), { target: { value: 'merged' } })
     fireEvent.submit(screen.getByRole('form', { name: 'Фильтры тем' }))
@@ -252,7 +260,7 @@ describe('Регрессии совместного редактирования
     const { changes, patch } = wire()
     changes.mockRejectedValueOnce(new ApiError(0, { code: 'NETWORK_UNAVAILABLE', message: 'Нет истории изменений.' })).mockResolvedValue([])
     render(<TopicDetail topicId={passportDetail.topic.topic_id} onClose={() => {}} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Редактировать паспорт и посмотреть историю' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Редактировать описание темы и историю' }))
     await screen.findByText('Нет истории изменений.')
     fill()
     expect(screen.getByRole('button', { name: 'Сохранить паспорт' })).toHaveProperty('disabled', true)

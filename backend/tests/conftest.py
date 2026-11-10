@@ -7,6 +7,13 @@ from app.config import REPO_ROOT, Settings
 from app.demo import load_fixture
 
 
+@pytest.fixture(autouse=True)
+def isolate_weekly_clock(monkeypatch):
+    # Обычные тесты не запускают фоновую запись по реальным часам.
+    # Расписание проверяется отдельно с явным enabled=True и fixed clock.
+    monkeypatch.setenv("APP_WEEKLY_ARCHIVE_ENABLED", "false")
+
+
 @pytest.fixture
 def tmp_path():
     # Изолируем запуски и избегаем чужих ACL системного Windows Temp.

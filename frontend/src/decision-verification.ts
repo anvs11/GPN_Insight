@@ -11,8 +11,10 @@ function historyPreserved(before: TopicDetail, after: TopicDetail) {
 function savedEvent(before: TopicDetail, request: DecisionUpdate, after: TopicDetail) {
   return after.history.find(event => event.topic_id === before.topic.topic_id && event.topic_version === request.version + 1 &&
     event.previous_status === before.topic.status && event.new_status === request.status &&
-    event.owner === request.owner && event.reason === request.reason && event.existing_issue_ref === null &&
-    event.review_after === null && event.implemented_at === null && event.implementation_comment === null)
+    event.owner === request.owner && event.reason === request.reason && event.existing_issue_ref === (request.existing_issue_ref ?? null) &&
+    event.review_after === (request.review_after ?? null) &&
+    (event.implemented_at === null && !request.implemented_at || event.implemented_at !== null && !!request.implemented_at &&
+      Date.parse(event.implemented_at) === Date.parse(request.implemented_at)) && event.implementation_comment === (request.implementation_comment ?? null))
 }
 
 export function verifyDecision(before: TopicDetail, request: DecisionUpdate, current: TopicDetail, receipt?: TopicDetail): 'confirmed' | 'changed' | 'unconfirmed' {

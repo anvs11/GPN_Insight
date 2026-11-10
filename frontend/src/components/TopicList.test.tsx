@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../App'
+import { workspacePage, emptyArchive } from '../test-fixtures/workspace'
 import { api, ApiError } from '../api'
 import type { Health, TopicListItem } from '../api-types'
 import { topicListItem } from '../test-fixtures/topic'
@@ -81,20 +82,23 @@ describe('Список тем из Backend', () => {
       pipeline_ready: false, integration_errors: ['ANALYSIS_NOT_CONNECTED'], available_models: {},
       replay_origins: [], replay_record_count: 0 }
     vi.spyOn(api, 'health').mockResolvedValue(health)
-    vi.spyOn(api, 'topics').mockResolvedValueOnce([topicListItem]).mockRejectedValue(new ApiError(503, {
+    vi.spyOn(api, 'monitoring').mockResolvedValueOnce(workspacePage).mockRejectedValue(new ApiError(503, {
       code: 'DATABASE_UNAVAILABLE', message: 'Список временно недоступен.',
     }))
+    vi.spyOn(api, 'reportArchive').mockResolvedValue(emptyArchive)
     const start = vi.spyOn(api, 'startRun')
     render(<App />)
-    await screen.findByRole('heading', { name: topicListItem.topic.title })
+    await screen.findByRole('button', { name: topicListItem.topic.title })
+    await user.click(screen.getByRole('button', { name: /Обработка$/ }))
     await screen.findByText('Доступен')
-    fireEvent.change(screen.getByLabelText('С даты'), { target: { value: '2026-10-01' } })
-    await user.click(screen.getByRole('button', { name: 'Обновить список' }))
-    await screen.findByText('Список временно недоступен.')
-    expect(screen.getByLabelText('С даты')).toHaveProperty('value', '2026-10-01')
+    fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('С даты'), { target: { value: '2026-10-01' } })
+    await user.click(screen.getByRole('button', { name: 'Закрыть: Обработка и состояние' }))
+    await screen.findByText(/Список временно недоступен/)
+    await user.click(screen.getByRole('button', { name: /Обработка$/ }))
+    expect(within(screen.getByRole('dialog')).getByLabelText('С даты')).toHaveProperty('value', '2026-10-01')
     expect(screen.getByRole('button', { name: 'Запустить обработку' })).toHaveProperty('disabled', true)
     expect(screen.queryByText('Экспорт списка заявок')).toBeNull()
     expect(start).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Обновить список' })).toHaveProperty('disabled', false))
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })

@@ -81,7 +81,7 @@ describe('Сохранение решения владельца продукт�
     vi.spyOn(api, 'topic').mockResolvedValueOnce(before).mockResolvedValue(after)
     const patch = vi.spyOn(api, 'saveDecision').mockResolvedValue(after)
     await openCard(before)
-    expect(within(screen.getByLabelText('Статус решения')).getAllByRole('option')).toHaveLength(2)
+    expect(within(screen.getByLabelText('Статус решения')).getAllByRole('option')).toHaveLength(6)
     fill(body)
     await user.click(screen.getByRole('button', { name: 'Сохранить решение' }))
     await screen.findByText(/Сохранение подтверждено повторным чтением/)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import type { EvidenceRef, SourceDetail } from '../api-types'
 import { formatTopicDate } from '../topic-labels'
@@ -13,6 +13,8 @@ export function SourceViewer({ sourceId, evidence, onClose }: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ApiError | null>(null)
   const [revision, setRevision] = useState(0)
+  const [textOpen, setTextOpen] = useState(false)
+  const textId = useId()
   const controllerRef = useRef<AbortController | null>(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -63,17 +65,45 @@ export function SourceViewer({ sourceId, evidence, onClose }: {
         <div><dt>Продукт</dt><dd>{source.ticket.product_id}</dd></div></dl>
       {source.requires_analysis && <p className="topic-notice">Источник ожидает анализа. Данные темы могут быть неполными.</p>}
       {source.manual_recheck_required && <p className="topic-notice">Ручное исправление требует повторной проверки после обновления анализа.</p>}
+      <section className="source-section source-original">
+        <button className="source-text-toggle" type="button" aria-expanded={textOpen} aria-controls={textId} onClick={() => setTextOpen(value => !value)}>{textOpen ? 'Скрыть текст обращения и расшифровки' : 'Показать текст обращения и расшифровки'}</button>
+        <div id={textId} hidden={!textOpen}>
+          <h5>Текст обращения и расшифровки</h5>
+          {source.synthetic && source.original_access !== 'restricted' ? <p className="topic-text source-original-text">{source.ticket.text || 'Исходный текст отсутствует.'}</p>
+            : <p>Оригинал несинтетического обращения не показывается: доступ к оригиналам требует отдельного согласования.</p>}
+          {source.document?.fragments.filter(fragment => fragment.kind !== 'text').map((fragment, index) => <article className="source-transcript" key={fragment.fragment_id}>
+            <h6>{fragment.kind === 'asr' ? 'Расшифровка аудио' : 'Описание изображения'} {index + 1}</h6>
+            <p className="source-section-note">Вложение: {fragment.asset_id ?? 'не указано'}{fragment.start_ms !== null || fragment.end_ms !== null ? ` · Метки сервера (мс): ${fragment.start_ms ?? 'нет данных'} — ${fragment.end_ms ?? 'нет данных'}` : ''}</p>
+            <p className="topic-text">{fragment.text || 'Пригодный текст отсутствует.'}</p>
+          </article>)}
+          {!source.document && <p>Распознавание ещё не подготовлено. После обработки здесь появятся доступные расшифровки.</p>}
+        </div>
+      </section>
       {sourceIsCurrent && source.current_result_revision && <SourceProcessing key={source.current_result_revision} source={source} />}
       {!source.current_result_revision && <p>Отдельной оценки категории/приоритета для этого источника нет. Отсутствие оценки не означает обычный приоритет.</p>}
-      {evidence && <div className="topic-notice"><p>Цитата из карточки · Фрагмент: {evidence.fragment_id}</p><blockquote>{evidence.quote}</blockquote>
+      {evidence && <section className="source-section source-evidence"><h5>Проверка цитаты из карточки</h5><figure><blockquote>{evidence.quote}</blockquote><figcaption>Фрагмент: {evidence.fragment_id}</figcaption></figure>
         <p>{!sourceIsCurrent ? 'Сверка цитаты с текущей версией источника не подтверждена. Дождитесь успешного обновления источника.'
           : quoteFound ? 'Цитата найдена в указанном фрагменте текущего источника. Это проверка совпадения текста, а не качества вывода.'
             : 'Цитата не подтверждена текущим фрагментом. Источник мог измениться или обработан не полностью. Обновите карточку и проверьте основание.'}</p>
-      </div>}
-      <h5>Исходный текст</h5>
-      {source.synthetic && source.original_access !== 'restricted' ? <p className="topic-text">{source.ticket.text || 'Исходный текст отсутствует.'}</p>
-        : <p>Оригинал несинтетического обращения не показывается: доступ к оригиналам требует отдельного согласования.</p>}
-      <h5>Подготовленные фрагменты</h5>
+      </section>}
+      {source.document && source.document.errors.length > 0 && <section className="source-section topic-list-error"><h5>Ошибки обработки материалов</h5><ul>
+        {source.document.errors.map((failure, index) => <li key={index}>{failure.stage} · {failure.code} · {failure.asset_id ?? 'без вложения'}: {failure.message}</li>)}
+      </ul><p>Покрытие неполное; ошибка не означает отсутствия потребностей.</p></section>}
+      {(!source.current_result_revision || !sourceIsCurrent) && <section className="source-section"><h5>Выделенные потребности</h5>
+      {source.needs.length === 0 ? <p>Сохранённых потребностей нет. Это не подтверждает, что потребностей в обращении нет.</p> : <div className="source-needs">{source.needs.map(need => <article className="source-need" key={need.need_id}>
+        <h6>{need.statement}</h6><p>Сценарий: {need.scenario} · {need.explicit_request ? 'Явная просьба' : 'Наблюдение по источнику'}</p>
+        <figure className="source-evidence"><blockquote>{need.evidence_quote}</blockquote><figcaption>Фрагмент: {need.fragment_id}</figcaption></figure>
+        {need.improvement_hypothesis !== null && <p className="topic-text">Гипотеза улучшения: {need.improvement_hypothesis}</p>}
+        {need.uncertainty_reason !== null && <p className="topic-notice">Неопределённость: {need.uncertainty_reason}</p>}
+      </article>)}</div>}</section>}
+      <section className="source-section"><h5>Вложения</h5>
+      {source.ticket.assets.length === 0 ? <p>Вложений нет.</p> : <><ul className="source-assets">{source.ticket.assets.map(asset => <li key={asset.asset_id}>
+        <strong>{asset.kind === 'audio' ? 'Аудио' : 'Изображение'}</strong> · {asset.mime_type}<p className="source-section-note">ID: {asset.asset_id}</p>
+        {sourceIsCurrent && <MediaAsset key={`${source.source_version}-${asset.asset_id}`} source={source} asset={asset} />}
+      </li>)}</ul>{!sourceIsCurrent && <p>Просмотр файлов доступен после успешного обновления источника.</p>}</>}
+      </section>
+      <details className="source-section source-technical"><summary>Подготовленные фрагменты — технические сведения</summary>
+        <p className="source-section-note">Фрагмент — часть текста, расшифровки или описания изображения, на которую ссылается найденная потребность. Его ID нужен для проверки цитат; это не отдельное обращение.</p>
       {source.document === null ? <p>Подготовленного документа пока нет. Это не означает отсутствия потребностей.</p> : <>
         <p>Версия документа: {source.document.version} · Версия нормализации: {source.document.normalization_version}</p>
         {source.document.fragments.length === 0 && <p>Фрагменты отсутствуют. Это не означает отсутствия потребностей.</p>}
@@ -82,24 +112,10 @@ export function SourceViewer({ sourceId, evidence, onClose }: {
           {fragment.asset_id !== null && <p>Вложение: {fragment.asset_id}</p>}
           {(fragment.start_ms !== null || fragment.end_ms !== null) && <p>Метки сервера (мс): {fragment.start_ms ?? 'нет данных'} — {fragment.end_ms ?? 'нет данных'}</p>}
           <p className="topic-text">{fragment.text || 'Текст фрагмента отсутствует.'}</p>
-          {fragment.warning && <p className="topic-notice">Предупреждение: {fragment.warning}</p>}
+          {fragment.warning && <div className="topic-notice"><strong>Ограничение подготовки</strong><p>{fragment.warning}</p></div>}
         </div>)}
-        {source.document.errors.length > 0 && <div className="topic-list-error"><h5>Ошибки обработки материалов</h5><ul>
-          {source.document.errors.map((failure, index) => <li key={index}>{failure.stage} · {failure.code} · {failure.asset_id ?? 'без вложения'}: {failure.message}</li>)}
-        </ul><p>Покрытие неполное; ошибка не означает отсутствия потребностей.</p></div>}
       </>}
-      <h5>Выделенные потребности</h5>
-      {source.needs.length === 0 ? <p>Сохранённых потребностей нет. Это не подтверждает, что потребностей в обращении нет.</p> : <ul>{source.needs.map(need => <li key={need.need_id}>
-        <p className="topic-text">{need.statement}</p><p>Сценарий: {need.scenario} · {need.explicit_request ? 'Явная просьба' : 'Наблюдение по источнику'}</p>
-        <blockquote>{need.evidence_quote}</blockquote><p>Фрагмент: {need.fragment_id}</p>
-        {need.improvement_hypothesis !== null && <p className="topic-text">Гипотеза улучшения: {need.improvement_hypothesis}</p>}
-        {need.uncertainty_reason !== null && <p className="topic-notice">Неопределённость: {need.uncertainty_reason}</p>}
-      </li>)}</ul>}
-      <h5>Вложения</h5>
-      {source.ticket.assets.length === 0 ? <p>Вложений нет.</p> : <><ul>{source.ticket.assets.map(asset => <li key={asset.asset_id}>
-        {asset.asset_id} · {asset.kind === 'audio' ? 'Аудио' : 'Изображение'} · {asset.mime_type}
-        {sourceIsCurrent && <MediaAsset key={`${source.source_version}-${asset.asset_id}`} source={source} asset={asset} />}
-      </li>)}</ul>{!sourceIsCurrent && <p>Просмотр файлов доступен после успешного обновления источника.</p>}</>}
+      </details>
     </>}
   </section>
 }

@@ -2,7 +2,8 @@
 import { readFileSync } from 'node:fs'
 import { Buffer } from 'node:buffer'
 import process from 'node:process'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import App from '../src/App'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MediaImportPanel } from '../src/components/MediaImportPanel'
 import { SourceViewer } from '../src/components/SourceViewer'
@@ -12,7 +13,7 @@ import { ProcessingPanel } from '../src/components/ProcessingPanel'
 
 if (!process.env.GPN_UI_HTTP_FIXTURE) throw new Error('Use backend/scripts/check_frontend_media_http.py to start isolated server')
 const fixture = JSON.parse(readFileSync(process.env.GPN_UI_HTTP_FIXTURE, 'utf8')) as {
-  baseUrl: string; manifest: string; sourceId: string; topicId: string; files: { path: string; name: string; mime: string }[]
+  baseUrl: string; manifest: string; sourceId: string; topicId: string; sourceCount?: number; files: { path: string; name: string; mime: string }[]
 }
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(fixture.baseUrl)) throw new Error('Only local synthetic test server is allowed')
 const nativeFetch = globalThis.fetch
@@ -101,10 +102,49 @@ describe('Synthetic frontend -> HTTP -> SQLite -> frontend', () => {
     fireEvent.click(start)
     await screen.findByRole('region', { name: 'Сохранённый запуск' })
     await waitFor(() => expect(screen.getByText('Завершён')).toBeTruthy(), { timeout: 10000 })
-    expect(screen.getByLabelText('Покрытие источников').textContent).toContain('полное покрытие: 1')
+    expect(screen.getByLabelText('Покрытие источников').textContent).toContain('полное покрытие: ' + (fixture.sourceCount ?? 1))
     const card = await (await nativeFetch(fixture.baseUrl + '/api/v1/topics/' + fixture.topicId)).json()
     expect(card.stats.ticket_count).toBe(1)
     expect(card.topic.status).toBe('needs_research')
     expect(card.history.length).toBe(1)
+  })
+  it('собирает отчёт из нового мониторинга и читает неизменяемый серверный архив', async () => {
+    render(<App />)
+    const choices = await screen.findAllByRole('checkbox', { name: /^В отчёт:/ })
+    fireEvent.click(choices[0])
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Основные разделы' })).getByRole('button', { name: /Отчёты/ }))
+    fireEvent.change(screen.getByLabelText('Название отчёта'), { target: { value: 'Синтетический HTTP отчёт' } })
+    fireEvent.change(screen.getByLabelText('Краткое резюме'), { target: { value: 'Проверка реального сохранения выбранной карточки.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить подборку в архив' }))
+    await screen.findByText(/Отчёт сохранён на сервере/)
+    await screen.findByRole('link', { name: 'Скачать Markdown' })
+    await screen.findByRole('button', { name: 'Синтетический HTTP отчёт' })
+    const archive = await (await nativeFetch(fixture.baseUrl + '/api/v1/reports/archive')).json()
+    expect(archive.total).toBe(1)
+    const saved = await (await nativeFetch(fixture.baseUrl + '/api/v1/reports/archive/' + archive.items[0].report_id)).json()
+    expect(saved.selection_count).toBe(1)
+    expect(saved.cards[0].revision).toMatch(/^[0-9a-f]{64}$/)
+    expect(saved.markdown).toContain('Проверка реального сохранения выбранной карточки')
+    fireEvent.click(screen.getByRole('button', { name: 'Синтетический HTTP отчёт' }))
+    const viewer = await screen.findByRole('dialog', { name: 'Просмотр отчёта' })
+    await within(viewer).findByRole('heading', { name: 'Синтетический HTTP отчёт' })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const pdf = await nativeFetch(fixture.baseUrl + '/api/v1/reports/archive/' + saved.report_id + '/pdf')
+    expect(pdf.status).toBe(200)
+    expect(new TextDecoder().decode(new Uint8Array(await pdf.arrayBuffer()).slice(0, 5))).toBe('%PDF-')
+    fireEvent.click(within(screen.getByRole('navigation')).getByRole('button', { name: /Мониторинг/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Обращения/ }))
+    await waitFor(() => expect(screen.getAllByRole('checkbox', { name: /^В отчёт:/ }).length).toBe(fixture.sourceCount ?? 1))
+    fireEvent.click(screen.getByRole('tab', { name: /Темы/ }))
+    fireEvent.click(await screen.findByRole('button', { name: saved.cards[0].title }))
+    await screen.findByRole('region', { name: 'Решение владельца продукта' })
+    fireEvent.change(screen.getByLabelText('Статус решения'), { target: { value: 'linked' } })
+    fireEvent.change(screen.getByLabelText('Ответственный'), { target: { value: 'Синтетический владелец UI' } })
+    fireEvent.change(screen.getByLabelText('Причина решения'), { target: { value: 'Проверена сквозная передача в разработку.' } })
+    fireEvent.change(screen.getByLabelText('Номер или ссылка существующей задачи'), { target: { value: 'SYNTHETIC-DEV-42' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить решение' }))
+    await screen.findByText(/Сохранение подтверждено повторным чтением/)
+    const archivedAgain = await (await nativeFetch(fixture.baseUrl + '/api/v1/reports/archive/' + saved.report_id)).json()
+    expect(archivedAgain).toEqual(saved)
   })
 })

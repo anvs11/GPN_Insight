@@ -4,6 +4,7 @@ import type { ImportPreview, ImportResult } from '../api-types'
 import { maxManifestBytes } from '../import-manifest'
 import { readMediaManifest } from '../media-manifest'
 import { SourceViewer } from './SourceViewer'
+import { WorkRules } from './WorkRules'
 
 type Snapshot = { raw: string; files: File[]; sourceIds: string[]; result: ImportPreview }
 
@@ -95,7 +96,9 @@ export function MediaImportPanel({ onImported }: { onImported?: () => void }) {
   }
   return <section className="topic-list" aria-label="Импорт медиа">
     <h2 id="media-import-title">Импорт обращений с медиа</h2>
-    <p><strong>Только synthetic=true.</strong> WAV/MP3 и PNG/JPEG. Загрузка файла и его распознавание — разные этапы; для анализа replay нужны точные известные записи.</p>
+    <p className="import-introduction">Прикрепите описание набора и файлы. Предпросмотр проверяет их, а подтверждение сохраняет.</p>
+    <ol className="import-steps" aria-label="Шаги медиаимпорта"><li className={preview || receipt ? 'done' : 'active'}>Выбрать файлы</li><li className={preview ? 'active' : ''}>Предпросмотр</li><li className={receipt ? 'done' : ''}>Подтвердить импорт</li><li>Обработать</li></ol>
+    <WorkRules><p>Только synthetic=true. WAV/MP3 и PNG/JPEG. Загрузка файла и распознавание — разные этапы; replay работает только для известных входов.</p><p>В JSON: dataset_id, synthetic=true, tickets с text и assets. В assets.path — точные имена выбранных файлов, без каталогов.</p><p>JSON до 1 МиБ; до 30 файлов / 50 МиБ. Аудио до 10 МиБ и 60 секунд, изображение до 5 МиБ. Фактический состав и ограничения проверяет сервер.</p></WorkRules>
     <form onSubmit={e => { e.preventDefault(); void check() }}>
       <fieldset disabled={busy === 'commit' || uncertain}>
         <legend>Набор с вложениями</legend>
@@ -104,8 +107,7 @@ export function MediaImportPanel({ onImported }: { onImported?: () => void }) {
           if (writing.current || unknown.current) return
           invalidate(); setFiles(Array.from(e.target.files ?? []))
         }} /></label>
-        <p>В JSON: dataset_id, synthetic=true, tickets с text и assets. В assets.path — точные простые имена выбранных файлов, без каталогов. Подробности в документации импорта.</p>
-        <p>JSON до 1 МиБ, до 30 файлов / 50 МиБ; аудио до 10 МиБ и 60 секунд, изображение до 5 МиБ. Сигнатуры и фактические ограничения проверяет сервер.</p>
+        <p className="step-caption">JSON связывает файлы с обращениями. Выберите его вместе с перечисленными в нём вложениями.</p>
         {manifest && <p>JSON: {manifest.name}. Исходный JSON отправляется без пересборки браузером.</p>}
         <ul>{files.map((file, i) => <li key={i}>{file.name} · {file.size} байт</li>)}</ul>
         <button disabled={busy !== null || reading}>{busy === 'preview' ? 'Проверяем медиа…' : 'Предпросмотр медиа'}</button>
@@ -131,7 +133,8 @@ export function MediaImportPanel({ onImported }: { onImported?: () => void }) {
     {receipt && <section aria-label="Подтверждённый медиаимпорт">
       <h3>Последний подтверждённый медиаимпорт</h3>
       <p>Backend подтвердил импорт {receipt.dataset_id}: новых {receipt.counts.inserted}, обновлений {receipt.counts.updated}, без изменений {receipt.counts.unchanged}.</p>
-      <p>Это подтверждение регистрации, не анализа. Запустите обработку ниже. Повтор неизменного набора не должен создавать дублей.</p>
+      <p>Файлы сохранены, распознавание ещё не запускалось. Повтор неизменного набора не создаёт дублей.</p>
+      <div className="import-next-step"><strong>4. Перейдите к обработке</strong><p>Она распознаёт зарегистрированные материалы и выделяет потребности. Replay требует точных сохранённых ответов для этого набора.</p><a className="button-primary" href="#processing-title">Перейти к запуску обработки</a></div>
       <ul>{confirmedIds.map(id => <li key={id}><button onClick={() => setSourceId(id)}>Сверить медиаисточник {id}</button></li>)}</ul>
     </section>}
     {sourceId && <SourceViewer key={sourceId} sourceId={sourceId} onClose={() => setSourceId(null)} />}

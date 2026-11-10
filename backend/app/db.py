@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Iterator
 from uuid import uuid4
 
-from .migrations import execute_statements, migrate_v1, migrate_v2, migrate_v3
+from .migrations import execute_statements, migrate_v1, migrate_v2, migrate_v3, migrate_v4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
@@ -69,7 +69,7 @@ def _version(db: sqlite3.Connection) -> int | None:
     if not exists:
         return None
     versions = [r[0] for r in db.execute("SELECT version FROM schema_version")]
-    if len(versions) != 1 or versions[0] not in {1, 2, 3, 4}:
+    if len(versions) != 1 or versions[0] not in {1, 2, 3, 4, 5}:
         raise RuntimeError("Версия базы не поддерживается; исходная база не менялась")
     return versions[0]
 
@@ -79,7 +79,7 @@ def initialize(path: Path) -> InitializationResult:
     backup_path = None
     with connection(path) as db:
         previous = _version(db)
-        if previous in {1, 2, 3}:
+        if previous in {1, 2, 3, 4}:
             folder = path.parent / "backups"
             folder.mkdir(exist_ok=True)
             backup_path = folder / f"{path.stem}.v{previous}.{uuid4().hex}.db"
@@ -100,4 +100,7 @@ def initialize(path: Path) -> InitializationResult:
             current = 3
         if current == 3:
             migrate_v3(db)
-    return InitializationResult(4, previous if previous in {1, 2, 3} else None, backup_path)
+            current = 4
+        if current == 4:
+            migrate_v4(db)
+    return InitializationResult(5, previous if previous in {1, 2, 3, 4} else None, backup_path)

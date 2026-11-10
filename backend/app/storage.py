@@ -142,10 +142,10 @@ class StorageRepository(RunStorage, ProcessingStorage):
                 db.row_factory = sqlite3.Row
                 db.execute("PRAGMA query_only = ON")
                 db.execute("BEGIN")
-                if [r[0] for r in db.execute("SELECT version FROM schema_version")] not in ([2], [3], [4]):
+                if [r[0] for r in db.execute("SELECT version FROM schema_version")] not in ([2], [3], [4], [5]):
                     raise RepositoryError(
                         "PREVIEW_SCHEMA_UNSUPPORTED",
-                        "Для проверки нужна SQLite v2–v4. Обновите базу отдельно по README.",
+                        "Для проверки нужна SQLite v2–v5. Обновите базу отдельно по README.",
                         503,
                     )
                 source_query = (

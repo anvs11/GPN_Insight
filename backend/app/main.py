@@ -19,6 +19,9 @@ from .pipeline import PipelineAdapters
 from .repositories import Repository, RepositoryError
 from .runs import RunService
 from .workflow_api import router as workflow_router
+from .workspace_api import router as workspace_router
+from .report_archive import router as archive_router
+from .weekly_archive import WeeklyArchive, router as schedule_router
 
 
 def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineAdapters | None = None) -> FastAPI:
@@ -31,6 +34,7 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
     if pipeline_adapters is None:
         pipeline_adapters, binding_error = configured_text_pipeline(settings, configured_gateway)
     runs = RunService(repository, settings.app_model_mode, pipeline_adapters)
+    weekly_archive = WeeklyArchive(repository, settings.app_model_mode, settings.app_weekly_archive_enabled)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -42,8 +46,10 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
         except (OSError, RepositoryError):
             app.state.import_storage_report.issues.append("IMPORT_RECOVERY_REPORT_UNAVAILABLE")
         try:
+            weekly_archive.start()
             yield
         finally:
+            weekly_archive.close()
             runs.close()
 
     # Swagger/ReDoc по умолчанию загружают JS с CDN. Оставляем локальный OpenAPI JSON.
@@ -54,6 +60,10 @@ def create_app(settings: Settings | None = None, *, pipeline_adapters: PipelineA
     app.state.text_gateway = configured_gateway
     app.state.text_pipeline_error = binding_error
     app.state.run_service = runs
+    app.state.weekly_archive = weekly_archive
+    app.include_router(workspace_router)
+    app.include_router(archive_router)
+    app.include_router(schedule_router)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]"])
 
     @app.middleware("http")

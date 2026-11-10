@@ -173,3 +173,13 @@ def migrate_v3(db: sqlite3.Connection) -> None:
     );
     UPDATE schema_version SET version=4 WHERE version=3;
     """)
+
+
+def migrate_v4(db):
+    execute_statements(db, """
+    CREATE TABLE report_snapshots (
+      report_id TEXT PRIMARY KEY, digest TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL, body_json TEXT NOT NULL
+    );
+    UPDATE schema_version SET version=5 WHERE version=4;
+    """)
