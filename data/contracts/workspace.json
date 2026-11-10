@@ -1,0 +1,194 @@
+{
+  "synthetic": true,
+  "origin": "authored",
+  "purpose": "contract_examples_only",
+  "examples": [
+    {"schema":"WeeklySchedule","value":{"enabled":true,"timezone":"Europe/Moscow","next_run_at":"2026-11-15T21:00:00Z","last_error":null,"catch_up":"latest_completed_week"}},
+    {
+      "schema": "WorkspaceCard",
+      "value": {
+        "kind": "source",
+        "id": "SYNTHETIC-SOURCE",
+        "version": 1,
+        "revision": "e67f33a122ccabfd15f40ac5d898cbe445b438cbd023f9f700a0e5c56dc139ed",
+        "title": "Synthetic source contract example",
+        "summary": "",
+        "created_at": "2026-11-10T09:00:00Z",
+        "last_seen": "2026-11-10T09:00:00Z",
+        "status": "pending",
+        "owner": null,
+        "ticket_count": 1,
+        "material_count": 0,
+        "categories": [],
+        "priorities": [],
+        "unassessed": true,
+        "errors": 0,
+        "pending": true,
+        "synthetic": true,
+        "origins": [
+          "authored"
+        ],
+        "source_ids": [
+          "SYNTHETIC-SOURCE"
+        ],
+        "topic_ids": []
+      }
+    },
+    {
+      "schema": "WorkspacePage",
+      "value": {
+        "items": [
+          {
+            "kind": "source",
+            "id": "SYNTHETIC-SOURCE",
+            "version": 1,
+            "revision": "e67f33a122ccabfd15f40ac5d898cbe445b438cbd023f9f700a0e5c56dc139ed",
+            "title": "Synthetic source contract example",
+            "summary": "",
+            "created_at": "2026-11-10T09:00:00Z",
+            "last_seen": "2026-11-10T09:00:00Z",
+            "status": "pending",
+            "owner": null,
+            "ticket_count": 1,
+            "material_count": 0,
+            "categories": [],
+            "priorities": [],
+            "unassessed": true,
+            "errors": 0,
+            "pending": true,
+            "synthetic": true,
+            "origins": [
+              "authored"
+            ],
+            "source_ids": [
+              "SYNTHETIC-SOURCE"
+            ],
+            "topic_ids": []
+          }
+        ],
+        "total": 1,
+        "offset": 0,
+        "limit": 24,
+        "model_mode": "replay"
+      }
+    },
+    {
+      "schema": "ReportSelection",
+      "value": {
+        "kind": "source",
+        "id": "SYNTHETIC-SOURCE",
+        "version": 1,
+        "revision": "e67f33a122ccabfd15f40ac5d898cbe445b438cbd023f9f700a0e5c56dc139ed"
+      }
+    },
+    {
+      "schema": "ReportDraft",
+      "value": {
+        "title": "Synthetic report contract example",
+        "summary": "",
+        "comment": "",
+        "selections": [
+          {
+            "kind": "source",
+            "id": "SYNTHETIC-SOURCE",
+            "version": 1,
+            "revision": "e67f33a122ccabfd15f40ac5d898cbe445b438cbd023f9f700a0e5c56dc139ed"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "ArchiveEntry",
+      "value": {
+        "report_id": "SYNTHETIC-REPORT",
+        "title": "Synthetic report contract example",
+        "kind": "selection",
+        "generated_at": "2026-11-10T09:00:00Z",
+        "model_mode": "replay",
+        "period": null,
+        "selection_count": 1
+      }
+    },
+    {
+      "schema": "ArchivePage",
+      "value": {
+        "items": [
+          {
+            "report_id": "SYNTHETIC-REPORT",
+            "title": "Synthetic report contract example",
+            "kind": "selection",
+            "generated_at": "2026-11-10T09:00:00Z",
+            "model_mode": "replay",
+            "period": null,
+            "selection_count": 1
+          }
+        ],
+        "total": 1,
+        "offset": 0,
+        "limit": 20
+      }
+    },
+    {
+      "schema": "ReportSnapshot",
+      "value": {
+        "report_id": "SYNTHETIC-REPORT",
+        "title": "Synthetic report contract example",
+        "kind": "selection",
+        "generated_at": "2026-11-10T09:00:00Z",
+        "model_mode": "replay",
+        "period": null,
+        "selection_count": 1,
+        "format_version": "report-snapshot-v1",
+        "digest": "b20098fc69ac543a29183955deea095704869651c04e401d130b4e300298092e",
+        "markdown": "# Synthetic contract example",
+        "summary": "",
+        "comment": "",
+        "limitations": "Contract shape only; not registered data or a replay recording.",
+        "cards": [
+          {
+            "kind": "source",
+            "id": "SYNTHETIC-SOURCE",
+            "version": 1,
+            "revision": "e67f33a122ccabfd15f40ac5d898cbe445b438cbd023f9f700a0e5c56dc139ed",
+            "title": "Synthetic source contract example",
+            "summary": "",
+            "created_at": "2026-11-10T09:00:00Z",
+            "last_seen": "2026-11-10T09:00:00Z",
+            "status": "pending",
+            "owner": null,
+            "ticket_count": 1,
+            "material_count": 0,
+            "categories": [],
+            "priorities": [],
+            "unassessed": true,
+            "errors": 0,
+            "pending": true,
+            "synthetic": true,
+            "origins": [
+              "authored"
+            ],
+            "source_ids": [
+              "SYNTHETIC-SOURCE"
+            ],
+            "topic_ids": []
+          }
+        ],
+        "selections": [
+          {
+            "kind": "source",
+            "id": "SYNTHETIC-SOURCE",
+            "version": 1,
+            "revision": "e67f33a122ccabfd15f40ac5d898cbe445b438cbd023f9f700a0e5c56dc139ed"
+          }
+        ],
+        "evidence": [
+          []
+        ],
+        "source_versions": {
+          "SYNTHETIC-SOURCE": 1
+        },
+        "distinct_source_count": 1
+      }
+    }
+  ]
+}

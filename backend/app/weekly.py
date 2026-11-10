@@ -49,6 +49,6 @@ def build_weekly_report(repository, mode):
         f"Неделя: {week.period.date_from} — {week.period.date_to}.\n"
         f"UTC: [{week.start_utc.isoformat()}, {week.end_utc_exclusive.isoformat()}).\n"
         "Отбор по created_at обращения; время анализа и решения не заменяет дату обращения.\n"
-        "Формирование по запросу; автоматическая рассылка/расписание не включены.\n\n"
+        "Снимок по запросу или локальному расписанию; автоматическая рассылка не включена.\n\n"
         f"Динамика distinct source_id по created_at: завершённая неделя={current}; предыдущая={previous}; разница={current - previous:+d}. "
         "Это объём зарегистрированных источников, не число инцидентов и не эффект внедрения.\n\n" + report)

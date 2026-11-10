@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     app_max_image_pixels: Annotated[int, Field(ge=1)] = 25000000
     app_max_audio_seconds: Annotated[int, Field(ge=1)] = 60
     app_duplicate_suggestions: bool = False
+    app_weekly_archive_enabled: bool = True
 
     def repo_path(self, path: Path) -> Path:
         """Одинаковые пути при запуске из корня и backend/."""

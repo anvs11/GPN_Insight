@@ -215,10 +215,10 @@ describe('Решения Review: два действия без потери ч�
     fireEvent.click(screen.getByRole('button', { name: 'Решение и история Review' }))
     await form(); submit()
     await screen.findByText('Проверяем Review, историю и связи повторным GET…')
-    expect(screen.getByRole('heading', { name: 'Назначение потребности · Ожидает проверки' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Загрузить очередь проверки' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('heading', { name: 'Связь потребности с темой · Связь не уточнена' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Обновить результаты' })).toHaveProperty('disabled', true)
     await act(async () => { finish(after.review) })
-    await screen.findByRole('heading', { name: 'Назначение потребности · Разрешено' })
+    await screen.findByRole('heading', { name: 'Связь потребности с темой · Уточнено' })
     expect(within(screen.getByRole('article')).getByText(/Решение Backend: attach/)).toBeTruthy()
   })
   it('выбор действия и подтверждение работают с клавиатуры', async () => {

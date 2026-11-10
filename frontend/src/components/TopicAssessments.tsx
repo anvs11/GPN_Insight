@@ -8,6 +8,7 @@ export function TopicAssessments({ card }: { card: TopicDetail }) {
   const [summary, setSummary] = useState<AssessmentSummary | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
   const pending = useRef<AbortController | null>(null)
   useEffect(() => () => pending.current?.abort(), [])
   async function load() {
@@ -23,9 +24,9 @@ export function TopicAssessments({ card }: { card: TopicDetail }) {
   }
   return <section aria-label="Категории и приоритеты темы">
     <h5>Категории и приоритеты темы</h5>
-    <button disabled={busy} onClick={() => { void load() }}>{busy ? 'Читаем оценки…' : 'Показать категории и приоритеты'}</button>
-    {error && <p role="alert" className="topic-list-error">{error}</p>}
-    {summary && <>
+    <button disabled={busy} aria-expanded={expanded} onClick={() => { setExpanded(value => !value); if (!expanded && !summary) void load() }}>{busy ? 'Читаем оценки…' : expanded ? 'Скрыть категории и приоритеты' : 'Показать категории и приоритеты'}</button>
+    {expanded && error && <p role="alert" className="topic-list-error">{error}</p>}
+    {expanded && summary && <>
       {(busy || error) && <p className="topic-list-stale">Показана последняя полученная оценка; актуальность не подтверждена.</p>}
       <p>Источников: {summary.source_count}; с потребностями без актуальной оценки: {summary.unassessed_source_count}.</p>
       <p>Каждая строка считает уникальные обращения. Категории и приоритеты могут пересекаться; суммы строк не равны общему числу обращений.</p>

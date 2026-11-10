@@ -117,7 +117,7 @@ def test_v3_migration_backup_repeat_rollback_and_preservation(tmp_path, fixture,
     repo.seed_demo(fixture)
     before = repo.get_topic(fixture.topic.topic_id, "replay")
     with connection(path) as db:
-        for table in ("need_assessments", "processing_needs", "processing_heads", "processing_results"):
+        for table in ("report_snapshots", "need_assessments", "processing_needs", "processing_heads", "processing_results"):
             db.execute(f"DROP TABLE {table}")
         db.execute("UPDATE schema_version SET version=3")
     original = database.migrate_v3
@@ -131,7 +131,7 @@ def test_v3_migration_backup_repeat_rollback_and_preservation(tmp_path, fixture,
         assert not db.execute("SELECT 1 FROM sqlite_master WHERE name='processing_results'").fetchone()
     monkeypatch.setattr(database, "migrate_v3", original)
     result = initialize(path)
-    assert result.version == 4 and result.migrated_from == 3 and result.backup_path.exists()
+    assert result.version == 5 and result.migrated_from == 3 and result.backup_path.exists()
     with connection(result.backup_path) as db:
         assert db.execute("SELECT version FROM schema_version").fetchone()[0] == 3
     assert Repository(path).get_topic(fixture.topic.topic_id, "replay") == before

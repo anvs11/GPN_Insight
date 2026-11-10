@@ -27,7 +27,7 @@ def repo(tmp_path):
     path = tmp_path / "text-import.db"
     initialize(path)
     with closing(sqlite3.connect(path)) as db:
-        assert db.execute("SELECT version FROM schema_version").fetchone()[0] == 4
+        assert db.execute("SELECT version FROM schema_version").fetchone()[0] == 5
     return Repository(path)
 
 

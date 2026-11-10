@@ -8,7 +8,7 @@ import { PassportForm } from './PassportForm'
 import './TopicDetail.css'
 import { TopicAssessments } from './TopicAssessments'
 
-export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: string; onClose: () => void; onTopicUpdated?: (value: Detail) => void }) {
+export function TopicDetail({ topicId, onClose, onTopicUpdated, onBusyChange }: { topicId: string; onClose: () => void; onTopicUpdated?: (value: Detail) => void; onBusyChange?: (busy: boolean) => void }) {
   const [detail, setDetail] = useState<Detail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ApiError | null>(null)
@@ -18,6 +18,7 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
   const [decisionBusy, setDecisionBusy] = useState(false)
   const [passportBusy, setPassportBusy] = useState(false)
   const [editingPassport, setEditingPassport] = useState(false)
+  const [passportOpened, setPassportOpened] = useState(false)
   const mutationRef = useRef<'decision' | 'passport' | null>(null)
   const busy = decisionBusy || passportBusy
 
@@ -26,6 +27,7 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
     if (value && mutationRef.current !== null) return false
     if (!value && mutationRef.current !== kind) return false
     mutationRef.current = value ? kind : null
+    onBusyChange?.(value)
     if (kind === 'decision') setDecisionBusy(value)
     else setPassportBusy(value)
     return true
@@ -120,12 +122,13 @@ export function TopicDetail({ topicId, onClose, onTopicUpdated }: { topicId: str
       <dl><dt>Сценарий</dt><dd className="topic-text">{detail.topic.passport.scenario || 'Не задан'}</dd>
         <dt>Границы потребности</dt><dd className="topic-text">{detail.topic.passport.scope || 'Не заданы'}</dd>
         <dt>Подтверждение границ</dt><dd>{detail.topic.passport.scope_confirmed ? 'Подтверждены' : 'Не подтверждены'}</dd>
-        <dt>Версия паспорта</dt><dd>{detail.topic.passport.version}</dd></dl>
+        </dl>
+      <details className="technical-details"><summary>Об описании темы и его версии</summary><p>Описание темы задаёт её сценарий, границы и примеры включения. Его редакции сохраняются, чтобы видеть изменения.</p><dl><dt>Версия паспорта</dt><dd>{detail.topic.passport.version}</dd></dl></details>
       {examples('Примеры включения в тему', detail.topic.passport.inclusion_examples)}
       {examples('Примеры исключения из темы', detail.topic.passport.exclusion_examples)}
-      {!editingPassport && <button type="button" disabled={loading || busy || error !== null} onClick={() => setEditingPassport(true)}>Редактировать паспорт и посмотреть историю</button>}
-      {editingPassport && <PassportForm detail={detail} stale={loading || error !== null} disabled={decisionBusy}
-        onRead={readCard} onBusyChange={value => mutationBusy('passport', value)} />}
+      <button type="button" aria-expanded={editingPassport} disabled={loading || busy || error !== null} onClick={() => { setPassportOpened(true); setEditingPassport(value => !value) }}>{editingPassport ? 'Свернуть редактирование описания' : 'Редактировать описание темы и историю'}</button>
+      {passportOpened && <div hidden={!editingPassport}><PassportForm detail={detail} stale={loading || error !== null} disabled={decisionBusy}
+        onRead={readCard} onBusyChange={value => mutationBusy('passport', value)} /></div>}
       <h4>Количество обращений по неделям</h4><p>Начало недели — дата, указанная сервером. Счётчики рассчитаны по сохранённым записям.</p>
       {Object.keys(detail.stats.weekly_counts).length === 0 ? <p>Данных по неделям нет.</p> : <ul>
         {Object.entries(detail.stats.weekly_counts).sort(([a], [b]) => a.localeCompare(b)).map(([week, count]) => <li key={week}>{week}: {count}</li>)}

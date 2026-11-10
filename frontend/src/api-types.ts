@@ -215,13 +215,16 @@ export interface DecisionEvent {
   topic_version: number
 }
 
-// Поля DecisionUpdate, используемые текущей формой. Остальные поля DTO
-// необязательны; текущий UI сохраняет только эти два целевых статуса.
+// Бизнес-статусы темы; merged меняется только отдельным действием объединения.
 export interface DecisionUpdate {
-  status: 'new' | 'needs_research'
+  status: Exclude<TopicStatus, 'merged'>
   owner: string
   reason: string
   version: number
+  existing_issue_ref?: string | null
+  review_after?: string | null
+  implemented_at?: string | null
+  implementation_comment?: string | null
 }
 
 export interface TopicDetail extends TopicListItem {

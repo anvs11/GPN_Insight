@@ -33,6 +33,6 @@ export const topicDetail: TopicDetail = {
 export function savedDecision(before: TopicDetail, request: DecisionUpdate, eventId = 'synthetic-saved-decision'): TopicDetail {
   return { ...before, topic: { ...before.topic, status: request.status, owner: request.owner, version: request.version + 1 },
     history: [...before.history, { event_id: eventId, topic_id: before.topic.topic_id, previous_status: before.topic.status,
-      new_status: request.status, owner: request.owner, reason: request.reason, existing_issue_ref: null, review_after: null,
-      implemented_at: null, implementation_comment: null, occurred_at: '2026-11-06T10:00:00+03:00', topic_version: request.version + 1 }] }
+      new_status: request.status, owner: request.owner, reason: request.reason, existing_issue_ref: request.existing_issue_ref ?? null, review_after: request.review_after ?? null,
+      implemented_at: request.implemented_at ?? null, implementation_comment: request.implementation_comment ?? null, occurred_at: '2026-11-06T10:00:00+03:00', topic_version: request.version + 1 }] }
 }

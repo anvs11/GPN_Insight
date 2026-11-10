@@ -16,14 +16,16 @@ function asError(failure: unknown) {
   })
 }
 function sameDraft(draft: Draft, request: DecisionUpdate) {
-  return draft.status === request.status && draft.owner === request.owner && draft.reason === request.reason
+  return draft.status === request.status && draft.owner.trim() === request.owner && draft.reason.trim() === request.reason &&
+    draft.existing_issue_ref?.trim() === request.existing_issue_ref && draft.review_after === request.review_after &&
+    draft.implemented_at === request.implemented_at && draft.implementation_comment?.trim() === request.implementation_comment
 }
 
 export function DecisionForm({ detail, stale, disabled = false, onRead, onBusyChange }: {
   detail: TopicDetail; stale: boolean; disabled?: boolean; onRead: (value: TopicDetail) => void; onBusyChange: (busy: boolean) => boolean | void
 }) {
   const [base, setBase] = useState(detail)
-  const [draft, setDraft] = useState<Draft>(() => ({ status: detail.topic.status === 'new' ? 'new' : 'needs_research', owner: detail.topic.owner ?? '', reason: '' }))
+  const [draft, setDraft] = useState<Draft>(() => ({ status: detail.topic.status === 'merged' ? 'needs_research' : detail.topic.status, owner: detail.topic.owner ?? '', reason: '' }))
   const [phase, setPhase] = useState<'idle' | 'saving' | 'reading'>('idle')
   const [error, setError] = useState<ApiError | null>(null)
   const [readError, setReadError] = useState<ApiError | null>(null)
@@ -86,9 +88,16 @@ export function DecisionForm({ detail, stale, disabled = false, onRead, onBusyCh
       setError(new ApiError(0, { code: 'FORM_INVALID', message: 'Заполните ответственного и причину. Поля не должны состоять только из пробелов.' }))
       return
     }
+    if (draft.status === 'linked' && !draft.existing_issue_ref?.trim() || draft.status === 'deferred' && !draft.review_after ||
+        draft.status === 'implemented' && (!draft.implemented_at || !Number.isFinite(Date.parse(draft.implemented_at)) || !draft.implementation_comment?.trim())) {
+      setError(new ApiError(0, { code: 'FORM_INVALID', message: 'Для передачи нужна существующая задача; для отсрочки — дата пересмотра; для реализации — дата и описание результата.' }))
+      return
+    }
     const controller = begin('saving')
     if (!controller) return
-    const request: DecisionUpdate = { ...draft, version: base.topic.version }
+    const request: DecisionUpdate = { ...draft, owner: draft.owner.trim(), reason: draft.reason.trim(), version: base.topic.version,
+      ...(draft.existing_issue_ref !== undefined && { existing_issue_ref: draft.existing_issue_ref?.trim() }),
+      ...(draft.implementation_comment !== undefined && { implementation_comment: draft.implementation_comment?.trim() }) }
     const attempt: Attempt = { before: base, request }
     setError(null); setReadError(null); setConfirmed(null); setLatestChecked(null)
     try {
@@ -133,7 +142,7 @@ export function DecisionForm({ detail, stale, disabled = false, onRead, onBusyCh
 
   return <section className="decision-form" aria-label="Решение владельца продукта">
     <h4>Решение владельца продукта</h4>
-    <p>Доступны «Новая» и «Исследуется». Ответственный и причина обязательны. Каждое сохранение, даже без смены статуса, добавляет запись в историю.</p>
+    <p>Решение относится к продуктовой теме. Оно не меняет статус исходной заявки и не создаёт задачу автоматически. Ответственный и причина обязательны; изменения сохраняются в истории.</p>
     <p>Версия для отправки: <strong>{base.topic.version}</strong>. Версия прочитанной карточки: <strong>{detail.topic.version}</strong>.</p>
     {merged && <p className="topic-notice">Тема объединена. Решение нужно менять в основной теме {detail.topic.canonical_topic_id}.</p>}
     {disabled && <p className="topic-notice">Сначала завершите сохранение паспорта.</p>}
@@ -164,10 +173,14 @@ export function DecisionForm({ detail, stale, disabled = false, onRead, onBusyCh
         <legend>Новое решение</legend>
         <label>Статус решения<select value={draft.status} onChange={event => {
           const status = event.target.value
-          if (status === 'new' || status === 'needs_research') edit({ ...draft, status })
-        }}><option value="new">Новая</option><option value="needs_research">Исследуется</option></select></label>
+          if (status === 'new' || status === 'needs_research' || status === 'linked' || status === 'deferred' || status === 'declined' || status === 'implemented') edit({ status, owner: draft.owner, reason: draft.reason })
+        }}>{(['new', 'needs_research', 'linked', 'deferred', 'declined', 'implemented'] as const).map(value => <option key={value} value={value}>{topicStatusLabels[value]}</option>)}</select></label>
         <label>Ответственный<input type="text" required value={draft.owner} onChange={event => edit({ ...draft, owner: event.target.value })} /></label>
         <label>Причина решения<textarea rows={4} required value={draft.reason} onChange={event => edit({ ...draft, reason: event.target.value })} /></label>
+        {draft.status === 'linked' && <label>Номер или ссылка существующей задачи<input required value={draft.existing_issue_ref ?? ''} placeholder="Например, DEV-42" onChange={event => edit({ ...draft, existing_issue_ref: event.target.value })} /></label>}
+        {draft.status === 'deferred' && <label>Дата пересмотра<input type="date" required value={draft.review_after ?? ''} onChange={event => edit({ ...draft, review_after: event.target.value })} /></label>}
+        {draft.status === 'implemented' && <><label>Дата реализации (Москва)<input type="datetime-local" required value={draft.implemented_at?.slice(0, 16) ?? ''} onChange={event => edit({ ...draft, implemented_at: event.target.value ? event.target.value + ':00+03:00' : '' })} /></label>
+          <label>Описание результата<textarea required rows={3} value={draft.implementation_comment ?? ''} onChange={event => edit({ ...draft, implementation_comment: event.target.value })} /></label></>}
         <button type="submit" disabled={blocked}>{phase === 'saving' ? 'Сохраняем решение…' : phase === 'reading' ? 'Проверяем карточку…' : 'Сохранить решение'}</button>
       </fieldset>
     </form>

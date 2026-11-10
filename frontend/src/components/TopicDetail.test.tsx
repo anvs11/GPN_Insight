@@ -8,6 +8,7 @@ import { sourceDetail, topicDetail } from '../test-fixtures/detail'
 import { TopicList } from './TopicList'
 import { TopicDetail } from './TopicDetail'
 import { SourceViewer } from './SourceViewer'
+import { workspacePage, emptyArchive } from '../test-fixtures/workspace'
 
 describe('Карточка темы и подтверждающие источники', () => {
   it('открывает карточку из списка, читает отдельный источник и сохраняет историю только для просмотра', async () => {
@@ -47,21 +48,22 @@ describe('Карточка темы и подтверждающие источн
     sessionStorage.setItem('user-preference', 'keep')
     vi.spyOn(api, 'health').mockResolvedValue({ status: 'ok', model_mode: 'live', processing_state: 'idle',
       pipeline_ready: false, integration_errors: ['ANALYSIS_NOT_CONNECTED'], available_models: {}, replay_origins: [], replay_record_count: 0 })
-    vi.spyOn(api, 'topics').mockResolvedValue([topicDetail])
+    vi.spyOn(api, 'monitoring').mockResolvedValue(workspacePage)
+    vi.spyOn(api, 'reportArchive').mockResolvedValue(emptyArchive)
     let reject: (error: ApiError) => void = () => { throw new Error('Запрос не создан') }
     vi.spyOn(api, 'topic').mockReturnValue(new Promise((_resolve, fail) => { reject = fail }))
     render(<App />)
     await screen.findByRole('button', { name: topicDetail.topic.title })
-    fireEvent.change(screen.getByLabelText('С даты'), { target: { value: '2026-10-01' } })
+    fireEvent.change(within(screen.getByRole('form', { name: 'Фильтры мониторинга' })).getByLabelText('С даты'), { target: { value: '2026-10-01' } })
     await user.click(screen.getByRole('button', { name: topicDetail.topic.title }))
     expect(screen.getByText('Загружаем карточку…')).toBeTruthy()
     await act(async () => reject(new ApiError(404, { code: 'TOPIC_NOT_FOUND', message: 'Тема отсутствует.' })))
     await screen.findByText('HTTP 404 · TOPIC_NOT_FOUND')
-    expect(screen.getByRole('list', { name: 'Сохранённые темы' })).toBeTruthy()
-    expect(screen.getByLabelText('С даты')).toHaveProperty('value', '2026-10-01')
+    expect(screen.getByRole('region', { name: 'Темы мониторинга' })).toBeTruthy()
+    expect(within(screen.getByRole('form', { name: 'Фильтры мониторинга' })).getByLabelText('С даты')).toHaveProperty('value', '2026-10-01')
     expect(sessionStorage.getItem('user-preference')).toBe('keep')
-    expect(screen.getByRole('button', { name: 'Запустить обработку' })).toHaveProperty('disabled', true)
-    expect(screen.queryByText(topicDetail.topic.summary)).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Тема и решение' })).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Карточка темы' })).queryByText(topicDetail.topic.summary)).toBeNull()
   })
 
   it('не теряет прочитанную карточку при сетевой ошибке обновления и позволяет повторить GET', async () => {

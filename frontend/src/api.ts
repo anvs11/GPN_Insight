@@ -2,6 +2,8 @@ import type { MaterialInput, ResolveReviewRequest, ImportLogEntry, ImportPreview
 import { isImportLog, isImportPreview, isImportResult, isReviews, isSourceDetail, isTopicChanges, isTopicDetail, isTopicListItem } from './api-validators'
 import { hasValidRunCoverage, isAssessmentSummary, isCompletedWeek, isProcessingDetail } from './processing-contracts'
 import type { AssessmentSummary, CompletedWeek, ProcessingDetail } from './processing-contracts'
+import { isWorkspaceCard, isWorkspacePage, isArchivePage, isSnapshot } from './workspace-contracts'
+import type { ReportDraft } from './workspace-contracts'
 
 // U4 использует только same-origin идентификаторы, никогда путь/URL из manifest.
 export function sourceMediaUrl(sourceId: string, sourceVersion: number, assetId: string): string {
@@ -130,6 +132,44 @@ function checkedRunCoverage(run: Run): Run {
 }
 
 export const api = {
+  weeklySchedule: async (signal?: AbortSignal) => {
+    const value = await request<unknown>('/reports/weekly-schedule', { signal })
+    if (typeof value !== 'object' || value === null || !('enabled' in value) || typeof value.enabled !== 'boolean' || !('timezone' in value) || value.timezone !== 'Europe/Moscow' || !('next_run_at' in value) || typeof value.next_run_at !== 'string' || !Number.isFinite(Date.parse(value.next_run_at)) || !('last_error' in value) || (value.last_error !== null && typeof value.last_error !== 'string')) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Состояние расписания не подтверждено.' })
+    return { enabled: value.enabled, next_run_at: value.next_run_at, last_error: value.last_error }
+  },
+  reportPdf: async (id: string, signal?: AbortSignal) => {
+    const bytes = await download('/api/v1/reports/archive/' + encodeURIComponent(id) + '/pdf', 'application/pdf', 20 * 1048576, signal)
+    if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Полученный файл не является PDF. Повторите скачивание.' })
+    return new Blob([bytes], { type: 'application/pdf' })
+  },
+  monitoringCard: async (kind: 'topic' | 'source', id: string) => {
+    const value = await request<unknown>('/monitoring/' + kind + '/' + encodeURIComponent(id))
+    if (!isWorkspaceCard(value) || value.id !== id || value.kind !== kind) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Ревизия карточки не подтверждена. Повторите чтение.' })
+    return value
+  },
+  monitoring: async (filters: Record<string, string>, signal?: AbortSignal) => {
+    const result = await request<unknown>('/monitoring?' + new URLSearchParams(filters), { signal })
+    if (!isWorkspacePage(result)) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Мониторинг вернул неполные данные. Повторите чтение.' })
+    if (result.items.some(i => i.kind !== (filters.view === 'sources' ? 'source' : 'topic'))) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Представление мониторинга не совпало. Повторите чтение.' })
+    return result
+  },
+  reportArchive: async (offset = 0, signal?: AbortSignal) => {
+    const result = await request<unknown>('/reports/archive?offset=' + offset, { signal })
+    if (!isArchivePage(result)) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Архив не подтверждён. Повторите чтение.' })
+    return result
+  },
+  archivedReport: async (id: string, signal?: AbortSignal) => {
+    const result = await request<unknown>('/reports/archive/' + encodeURIComponent(id), { signal })
+    if (!isSnapshot(result) || result.report_id !== id) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Снимок отчёта не подтверждён. Повторите чтение.' })
+    return result
+  },
+  saveReport: async (draft: ReportDraft | null) => {
+    const result = await request<unknown>('/reports/archive' + (draft ? '' : '/weekly'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, ...(draft && { body: JSON.stringify(draft) }),
+    })
+    if (!isSnapshot(result)) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Ответ сохранения не подтверждён. Проверьте архив перед повтором.' })
+    return result
+  },
   processing: async (source: SourceDetail, signal?: AbortSignal): Promise<ProcessingDetail> => {
     const result = await request<unknown>(`/sources/${encodeURIComponent(source.ticket.source_id)}/processing?source_version=${source.source_version}`, { signal })
     if (!isProcessingDetail(result, source)) throw new ApiError(200, { code: 'INVALID_RESPONSE', message: 'Ревизия обработки изменилась или ответ неполный. Обновите источник; прежние данные сохранены.' })
