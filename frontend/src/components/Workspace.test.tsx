@@ -131,7 +131,7 @@ describe('Рабочее пространство мониторинга и от
     setup()
     let resolve: (page: WorkspacePage) => void = () => {}
     const load = vi.spyOn(api, 'monitoring').mockImplementationOnce(() => new Promise(done => { resolve = done }))
-      .mockResolvedValue({ ...workspacePage, items: [{ ...workspaceCard, kind: 'source', id: 'source-only', title: 'Необработанная заявка', status: 'pending' }] })
+      .mockImplementation(async filters => ({ ...workspacePage, total: filters.priority ? 0 : 1, items: filters.priority ? [] : [{ ...workspaceCard, kind: 'source', id: 'source-only', title: 'Необработанная заявка', status: 'pending' }] }))
     render(<App />)
     fireEvent.click(screen.getByRole('tab', { name: /Обращения/ }))
     await screen.findByRole('button', { name: 'Необработанная заявка' })
