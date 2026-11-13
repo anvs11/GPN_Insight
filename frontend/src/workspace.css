@@ -320,3 +320,11 @@ h1,h2,h3,h4 { color:var(--text-h); }
 @media (min-width: 1600px) {
   .insight-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+/* All current-page topics, with a readable legend and actual source links. */
+.signal-map .map-orbit { fill:none; stroke:#6c68a7; stroke-dasharray:3 7; opacity:.25; }
+.signal-map .signal-edge { opacity:.26; stroke-width:.8; }.signal-map .signal-edge.highlighted { opacity:1; stroke-width:1.8; }.signal-map .signal-edge.dimmed { opacity:.05; }
+.map-source-muted { opacity:.15; }.signal-map g[role=button] { outline:none; }.signal-map g[role=button]:focus-visible .map-topic { stroke:white; stroke-width:2.5; }
+.signal-map .map-selection-caption { min-height:54px; font-size:12px; line-height:1.6; color:#c4c8e5; margin:14px 0 8px; }
+.map-topic-list { list-style:none; padding:0; margin:0; display:grid; gap:4px; max-height:240px; overflow:auto; scrollbar-width:thin; }
+.map-topic-list button { width:100%; border:0; border-radius:6px; background:transparent; display:flex; gap:8px; align-items:center; text-align:left; color:#abb5ce; padding:7px 5px; font-size:12px; line-height:1.45; }
+.map-topic-list button:hover,.map-topic-list button.active { background:#8d82e522; color:#e4e0ff; }.map-topic-list button>span { min-width:22px; height:22px; border-radius:50%; background:#625a9544; display:grid; place-items:center; font-size:11px; }.map-topic-list button>small { margin-left:auto; color:#c4b7ff; }

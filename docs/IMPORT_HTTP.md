@@ -2,7 +2,7 @@
 
 ## Текущий срез U1 — 2026-11-07
 
-Общий `import_tickets` поддерживает текст и проверенные WAV/MP3/PNG/JPEG. HTTP POST `/api/v1/imports?dry_run=true`, POST `/api/v1/imports`, GET `/api/v1/imports` и прежние ImportPreview/ImportResult/ErrorResponse сохранены. CLI `app.cli import --manifest … [--dry-run]` читает перечисленные простые имена только внутри каталога manifest и вызывает тот же сервис. Схемы, SQLite v3 и source_content_hash не менялись. Реализация и результаты — [.agent/U1_MEDIA_IMPORT.md](../.agent/U1_MEDIA_IMPORT.md), передача — [U1_MEDIA_HANDOFF.md](U1_MEDIA_HANDOFF.md).
+Общий `import_tickets` поддерживает текст и проверенные WAV/MP3/PNG/JPEG. HTTP POST `/api/v1/imports?dry_run=true`, POST `/api/v1/imports`, GET `/api/v1/imports` и прежние ImportPreview/ImportResult/ErrorResponse сохранены. CLI `app.cli import --manifest … [--dry-run]` читает перечисленные простые имена только внутри каталога manifest и вызывает тот же сервис. Схемы, SQLite v3 и source_content_hash не менялись. Реализация и результаты — [Техническая документация](U1_MEDIA_HANDOFF.md), передача — [U1_MEDIA_HANDOFF.md](U1_MEDIA_HANDOFF.md).
 
 Manifest по-прежнему содержит ровно dataset_id/synthetic/tickets. HTTP передаёт один manifest (поле либо file-part) и повторяющиеся files с точными именами из assets.path; порядок частей произвольный. Имя manifest не используется как путь. Имена медиа должны быть NFC, без каталогов/управляющих символов/Windows reserved names; коллизии casefold отвергаются. В CLI соседние файлы, не перечисленные в manifest, не читаются. Отсутствующие/лишние переданные файлы, unsafe links, неверные сигнатуры/метаданные и MIME manifest отклоняют весь набор. MIME клиента не является доказательством; bytes проверяются wave, Pillow и mutagen.
 
