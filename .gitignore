@@ -31,3 +31,12 @@ var/
 *.db-wal
 .pytest_cache/
 *.egg-info/
+
+# Личные инструкции и локальные материалы разработки
+**/START_ROLE*.md
+/portability-fix.patch
+/.agent/*
+!/.agent/EXECPLAN.md
+!/.agent/PLANS.md
+# Черновики конкурсной подачи публикуются только отдельным решением команды.
+/outputs/
